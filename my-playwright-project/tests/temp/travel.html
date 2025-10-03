@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Khám Phá Du Lịch - Các Tuyến Đường Hấp Dẫn</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome cho icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+        }
+
+        .hero {
+            background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80') center/cover;
+            color: white;
+            padding: 150px 0;
+            text-align: center;
+        }
+
+        .tour-card {
+            transition: transform 0.3s;
+        }
+
+        .tour-card:hover {
+            transform: translateY(-10px);
+        }
+
+        .btn-detail {
+            background: #28a745;
+            border: none;
+        }
+
+        .btn-detail:hover {
+            background: #218838;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#"><i class="fas fa-plane"></i> TravelHub</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="#home">Trang Chủ</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#tours">Tuyến Du Lịch</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#contact">Liên Hệ</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="home" class="hero">
+        <div class="container">
+            <h1 class="display-4 fw-bold mb-4">Khám Phá Thế Giới Với Chúng Tôi</h1>
+            <p class="lead mb-4">Hàng trăm tuyến du lịch hấp dẫn, giá cả phải chăng. Bắt đầu hành trình của bạn ngay hôm
+                nay!</p>
+            <a href="#tours" class="btn btn-light btn-lg">Xem Tuyến Du Lịch</a>
+        </div>
+    </section>
+
+    <!-- Tours Section -->
+    <section id="tours" class="py-5 bg-light">
+        <div class="container">
+            <h2 class="text-center mb-5">Các Tuyến Du Lịch Nổi Bật</h2>
+            <div class="row g-4">
+                <!-- Tour 1: Hà Nội - Sapa -->
+                <div class="col-md-4">
+                    <div class="card tour-card h-100 shadow">
+                        <img src="https://images.unsplash.com/photo-1551524160-54b8a5e17b34?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+                            class="card-img-top" alt="Sapa">
+                        <div class="card-body">
+                            <h5 class="card-title">Hà Nội - Sapa 3N2Đ</h5>
+                            <p class="card-text">Khám phá ruộng bậc thang hùng vĩ, văn hóa dân tộc thiểu số. Bao gồm xe
+                                đưa đón và ăn uống.</p>
+                            <p class="text-success fw-bold">Từ 2.500.000 VNĐ</p>
+                            <a href="#" class="btn btn-detail btn-sm"><i class="fas fa-eye"></i> Chi Tiết</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tour 2: TP.HCM - Phú Quốc -->
+                <div class="col-md-4">
+                    <div class="card tour-card h-100 shadow">
+                        <img src="https://images.unsplash.com/photo-1540979388789-6cee28a1cdc9?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+                            class="card-img-top" alt="Phú Quốc">
+                        <div class="card-body">
+                            <h5 class="card-title">TP.HCM - Phú Quốc 4N3Đ</h5>
+                            <p class="card-text">Bãi biển xanh ngọc, lặn ngắm san hô. Vé máy bay khứ hồi và khách sạn 4
+                                sao.</p>
+                            <p class="text-success fw-bold">Từ 4.800.000 VNĐ</p>
+                            <a href="#" class="btn btn-detail btn-sm"><i class="fas fa-eye"></i> Chi Tiết</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tour 3: Đà Nẵng - Hội An -->
+                <div class="col-md-4">
+                    <div class="card tour-card h-100 shadow">
+                        <img src="https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+                            class="card-img-top" alt="Hội An">
+                        <div class="card-body">
+                            <h5 class="card-title">Đà Nẵng - Hội An 2N1Đ</h5>
+                            <p class="card-text">Cầu Rồng phun lửa, phố cổ đèn lồng. Tour xe đưa đón và hướng dẫn viên.
+                            </p>
+                            <p class="text-success fw-bold">Từ 1.800.000 VNĐ</p>
+                            <a href="#" class="btn btn-detail btn-sm"><i class="fas fa-eye"></i> Chi Tiết</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Thêm tour khác nếu cần -->
+                <div class="col-md-4">
+                    <div class="card tour-card h-100 shadow">
+                        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+                            class="card-img-top" alt="Hà Giang">
+                        <div class="card-body">
+                            <h5 class="card-title">Hà Giang Mùa Hoa Tam Giác Mạch</h5>
+                            <p class="card-text">Đường đèo uốn lượn, hoa nở rộ. Xe máy và homestay địa phương.</p>
+                            <p class="text-success fw-bold">Từ 3.200.000 VNĐ</p>
+                            <a href="#" class="btn btn-detail btn-sm"><i class="fas fa-eye"></i> Chi Tiết</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center mt-4">
+                <a href="#" class="btn btn-primary btn-lg">Xem Tất Cả Tuyến</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="py-5">
+        <div class="container">
+            <h2 class="text-center mb-5">Liên Hệ Với Chúng Tôi</h2>
+            <div class="row">
+                <div class="col-md-6">
+                    <form>
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Họ Tên</label>
+                            <input type="text" class="form-control" id="name">
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email">
+                        </div>
+                        <div class="mb-3">
+                            <label for="message" class="form-label">Tin Nhắn</label>
+                            <textarea class="form-control" id="message" rows="3"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success">Gửi</button>
+                    </form>
+                </div>
+                <div class="col-md-6">
+                    <p><i class="fas fa-phone"></i> Hotline: 1900-1234</p>
+                    <p><i class="fas fa-envelope"></i> Email: info@travelhub.vn</p>
+                    <p><i class="fas fa-map-marker-alt"></i> Địa chỉ: 123 Đường Du Lịch, TP.HCM</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-4">
+        <div class="container text-center">
+            <p>&copy; 2025 TravelHub. Tất cả quyền được bảo lưu.</p>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Smooth scroll cho navigation
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>
