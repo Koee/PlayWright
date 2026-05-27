@@ -105,16 +105,21 @@ test.describe('Checkout Flow Automation - All Websites', () => {
         await page.waitForLoadState('networkidle');
         await page.waitForTimeout(2000);
 
-        const success = await clickElement(
-            page,
-            ['button:has-text("+")'],
-            'Clicking first "+" button',
-            { visibilityTimeout: 5000, clickTimeout: 10000, waitAfter: 500 }
-        );
+        try {
+            const firstPlusBtn = page.locator('button').filter({ hasText: '+' }).first();
 
-        if (!success) {
-            console.warn('⚠️ First "+" button not found, continuing...');
+            if (await firstPlusBtn.isVisible({ timeout: 5000 })) {
+                await firstPlusBtn.click({ timeout: 10000 });
+                await page.waitForTimeout(500);
+                console.log('✅ Clicking first "+" button');
+                return;
+            }
+        } catch (e) {
+            console.warn('⚠️ Could not click first "+" button:', e);
         }
+
+        console.warn('⚠️ First "+" button not found, continuing...');
+        return;
     }
 
     async function addFirstProductToCart(page: Page) {
