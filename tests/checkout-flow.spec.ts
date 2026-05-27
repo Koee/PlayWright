@@ -118,105 +118,28 @@ test.describe('Checkout Flow Automation - All Websites', () => {
         throw new Error('Could not find add to cart button');
     }
 
-    // Helper function to add product by clicking the "+" button
+    // Helper function to add product by clicking the first "+" button in product list
     async function clickAddProductButton(page: Page) {
         await page.waitForLoadState('networkidle');
         await page.waitForTimeout(2000);
 
-        console.log('Step: Looking for "+" button to increment product quantity...');
+        console.log('Step: Clicking first "+" button in product list...');
 
-        // Strategy 1: Find product rows and click "+" button within them
         try {
-            // Look for product item containers with quantity controls
-            const productRows = page.locator(
-                '[class*="product"], [class*="item"], [class*="row"], tr, .cart-item, [data-testid*="product"]'
-            );
+            // Find the first "+" button on the page and click it
+            const firstPlusBtn = page.locator('button:has-text("+")').first();
             
-            const rowCount = await productRows.count();
-            console.log(`Found ${rowCount} potential product rows`);
-
-            if (rowCount > 0) {
-                // Get the first product row
-                const firstRow = productRows.first();
-                
-                // Try to find "+" button within this row
-                const plusBtnInRow = firstRow.locator('button:has-text("+")')
-                    .or(firstRow.locator('button[aria-label*="thêm"]'))
-                    .or(firstRow.locator('button[aria-label*="add"]'))
-                    .or(firstRow.locator('[class*="increment"]'))
-                    .first();
-
-                if (await plusBtnInRow.isVisible({ timeout: 3000 })) {
-                    await plusBtnInRow.click({ timeout: 10000 });
-                    await page.waitForTimeout(500);
-                    console.log('✅ Clicked "+" button within product row');
-                    return;
-                }
+            if (await firstPlusBtn.isVisible({ timeout: 5000 })) {
+                await firstPlusBtn.click({ timeout: 10000 });
+                await page.waitForTimeout(500);
+                console.log('✅ Successfully clicked first "+" button');
+                return;
             }
         } catch (e) {
-            console.log('Strategy 1 failed, trying next approach...');
+            console.warn('⚠️ Could not click first "+" button:', e);
         }
 
-        // Strategy 2: Look for all visible "+" buttons on page
-        try {
-            const allPlusButtons = page.locator('button:has-text("+")');
-            const btnCount = await allPlusButtons.count();
-            
-            if (btnCount > 0) {
-                console.log(`Found ${btnCount} "+" button(s) on page`);
-                
-                // Try each button until one works
-                for (let i = 0; i < Math.min(btnCount, 3); i++) {
-                    try {
-                        const btn = allPlusButtons.nth(i);
-                        if (await btn.isVisible({ timeout: 2000 })) {
-                            await btn.click({ timeout: 10000 });
-                            await page.waitForTimeout(500);
-                            console.log(`✅ Clicked "+" button #${i + 1}`);
-                            return;
-                        }
-                    } catch (e) {
-                        continue;
-                    }
-                }
-            }
-        } catch (e) {
-            console.log('Strategy 2 failed, trying next approach...');
-        }
-
-        // Strategy 3: Look for button with specific styling/classes
-        try {
-            const styledButtons = page.locator(
-                'button[style*="rgb"], button[style*="background"], ' +
-                'button[class*="btn"], button[class*="add"], button[class*="increment"]'
-            );
-            
-            const count = await styledButtons.count();
-            if (count > 0) {
-                // Find one with "+" text
-                for (let i = 0; i < count; i++) {
-                    try {
-                        const btn = styledButtons.nth(i);
-                        const text = await btn.textContent();
-                        if (text?.includes('+')) {
-                            if (await btn.isVisible({ timeout: 2000 })) {
-                                await btn.click({ timeout: 10000 });
-                                await page.waitForTimeout(500);
-                                console.log('✅ Clicked "+" button by styling');
-                                return;
-                            }
-                        }
-                    } catch (e) {
-                        continue;
-                    }
-                }
-            }
-        } catch (e) {
-            console.log('Strategy 3 failed');
-        }
-
-        // Log warning instead of throwing - button might not exist on all pages
-        console.warn('⚠️ "+" (add product) button not found, continuing checkout without incrementing quantity...');
+        console.warn('⚠️ First "+" button not found, continuing...');
         return;
     }
 
