@@ -106,19 +106,21 @@ test.describe('Checkout Flow Automation - All Websites', () => {
         await page.waitForTimeout(2000);
 
         try {
-            const firstPlusBtn = page.locator('button').filter({ hasText: '+' }).first();
+            // Find first product card and click its "+" button
+            const productCard = page.locator('[class*="product"], [class*="item"], [class*="card"]').first();
+            const plusBtn = await productCard.locator('button:enabled').filter({ hasText: '+' }).first();
 
-            if (await firstPlusBtn.isVisible({ timeout: 5000 })) {
-                await firstPlusBtn.click({ timeout: 10000 });
+            if (await plusBtn.isVisible({ timeout: 5000 })) {
+                await plusBtn.click({ timeout: 10000 });
                 await page.waitForTimeout(500);
-                console.log('✅ Clicking first "+" button');
+                console.log('✅ Clicked "+" button in first product card');
                 return;
             }
         } catch (e) {
-            console.warn('⚠️ Could not click first "+" button:', e);
+            console.warn('⚠️ Could not click "+" button in product card:', e);
         }
 
-        console.warn('⚠️ First "+" button not found, continuing...');
+        console.warn('⚠️ "+" button not found in product list, continuing...');
         return;
     }
 
