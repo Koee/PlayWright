@@ -270,16 +270,6 @@ test.describe('Checkout Flow Automation - All Websites', () => {
 
         const invoiceSelectors = [
             'text=Hóa đơn chi tiết',
-            'text=📄 Hóa đơn',
-            '.popup',
-            '.modal',
-            '.invoice',
-            '.order-success',
-            'text=In hóa đơn',
-            'button:has-text("In hóa đơn")',
-            'button:has-text("in hóa đơn")',
-            '[class*="invoice"]',
-            '[class*="invoice-detail"]'
         ];
 
         for (const selector of invoiceSelectors) {
