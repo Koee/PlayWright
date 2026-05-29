@@ -10,3 +10,6 @@ screenshots/
 .playwright-mcp/
 dist/
 *.log
+
+# Environment variables (sensitive data)
+.env
