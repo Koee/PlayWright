@@ -33,6 +33,8 @@ test.describe('Checkout Flow Automation - All Websites', () => {
         invoicePopup: 'invoice-popup',
     };
 
+    const invoiceErrorRegex = /Lỗi lấy đơn hàng|Quota exceeded|Read requests|sheets\.googleapis\.com|project_number|Không thể tải dữ liệu|Internal server error/i;
+
 
     // ============================================================================
     // UTILITY FUNCTIONS
@@ -127,7 +129,7 @@ test.describe('Checkout Flow Automation - All Websites', () => {
         }
 
         // If still not found, capture diagnostic screenshot (if page still open) and throw detailed error
-        const errorPath = path.join('test-results', `${websiteName}-tab-not-found.png`);
+        const errorPath = path.join('err-screenshots', `${websiteName}-tab-not-found.png`);
         if (!page.isClosed()) {
             try {
                 await fs.mkdir(path.dirname(errorPath), { recursive: true });
@@ -264,7 +266,7 @@ test.describe('Checkout Flow Automation - All Websites', () => {
 
         if (!nameVisible) {
             // Capture diagnostic screenshot to help debugging
-            const errorPath = path.join('test-results', `fill-info-popup-missing-${Date.now()}.png`);
+            const errorPath = path.join('err-screenshots', `fill-info-popup-missing-${Date.now()}.png`);
             try {
                 await fs.mkdir(path.dirname(errorPath), { recursive: true });
                 if (!page.isClosed()) await page.screenshot({ path: errorPath, fullPage: true });
@@ -301,7 +303,7 @@ test.describe('Checkout Flow Automation - All Websites', () => {
      * Monitors for API errors and captures screenshot if found
      */
     async function checkAndCaptureApiError(page: Page, testInfo: any, stepName: string): Promise<boolean> {
-        const errorRegex = /Lỗi lấy đơn hàng|Quota exceeded|Read requests|sheets\.googleapis\.com|project_number|Không thể tải dữ liệu|Internal server error|Internal Server Error|API error/i;
+        const errorRegex = new RegExp(`${invoiceErrorRegex.source}|API error`, 'i');
         const locators = [
             page.locator('body', { hasText: errorRegex }).first(),
             page.frameLocator('iframe').locator('body', { hasText: errorRegex }).first(),
@@ -310,7 +312,7 @@ test.describe('Checkout Flow Automation - All Websites', () => {
         for (const locator of locators) {
             try {
                 if (await locator.isVisible({ timeout: 2000 })) {
-                    const errorPath = path.join('test-results', `${testInfo.project.name}-api-error-${stepName}.png`);
+                    const errorPath = path.join('err-screenshots', `${testInfo.project.name}-api-error-${stepName}.png`);
                     await fs.mkdir(path.dirname(errorPath), { recursive: true });
                     await page.screenshot({ path: errorPath, fullPage: true });
                     console.error(`❌ API error detected during "${stepName}" step: ${errorPath}`);
@@ -385,6 +387,64 @@ test.describe('Checkout Flow Automation - All Websites', () => {
             return false;
         }
 
+        async function hasInvoiceErrorContent(page: Page): Promise<boolean> {
+            const checks = [
+                async () => await page.locator('body').textContent({ timeout: 1000 }),
+                async () => await page.frameLocator('iframe').locator('body').first().textContent({ timeout: 1000 }),
+            ];
+
+            for (const check of checks) {
+                try {
+                    const text = await check();
+                    if (text && invoiceErrorRegex.test(text)) {
+                        return true;
+                    }
+                } catch {
+                    // Continue checking the next context.
+                }
+            }
+
+            for (const frame of page.frames()) {
+                try {
+                    const text = await frame.locator('body').textContent({ timeout: 1000 });
+                    if (text && invoiceErrorRegex.test(text)) {
+                        return true;
+                    }
+                } catch {
+                    // Some frames may not be ready or accessible yet.
+                }
+            }
+
+            return false;
+        }
+
+        async function getInvoicePopupViewportHeight(page: Page): Promise<number> {
+            return await page.locator("iframe").first().evaluate((frameEl) => {
+                if (!(frameEl instanceof HTMLIFrameElement)) return 1280;
+                const doc = frameEl.contentDocument;
+                const content = doc?.getElementById("content");
+                const noPrint = doc?.querySelector<HTMLElement>(".no-print");
+                return (content?.scrollHeight ?? 0) + (noPrint?.offsetHeight ?? 0) + 420;
+            }).catch(() => 1280);
+        }
+
+        async function resizeForInvoicePopup(page: Page): Promise<void> {
+            const viewportHeight = await getInvoicePopupViewportHeight(page);
+
+            await page.setViewportSize({
+                width: 1280,
+                height: Math.min(Math.max(viewportHeight, 1280), 4000),
+            });
+        }
+
+        function getInvoiceModal(page: Page): Locator {
+            return page
+                .locator("div")
+                .filter({ has: page.getByText(/Hóa đơn chi tiết|Hoá đơn chi tiết|HÃ³a Ä‘Æ¡n chi tiáº¿t|HoÃ¡ Ä‘Æ¡n chi tiáº¿t/) })
+                .filter({ has: page.locator("iframe") })
+                .last();
+        }
+
         async function captureInvoiceErrorState(page: Page, testInfo: any): Promise<boolean> {
             // Check if page is closed before attempting any operations
             if (page.isClosed()) {
@@ -392,75 +452,72 @@ test.describe('Checkout Flow Automation - All Websites', () => {
                 return false;
             }
 
-            const errorRegex = /Lỗi lấy đơn hàng|Quota exceeded|Read requests|sheets\.googleapis\.com|project_number|Không thể tải dữ liệu|Internal server error|Internal Server Error/i;
-            const locators = [
-                page.locator('body', { hasText: errorRegex }).first(),
-                page.frameLocator('iframe').locator('body', { hasText: errorRegex }).first(),
-            ];
+            try {
+                if (!await hasInvoiceErrorContent(page)) {
+                    return false;
+                }
 
-            for (const locator of locators) {
+                const errorPath = path.join('err-screenshots', `${testInfo.project.name}-invoice-detail-error.png`);
+                await fs.mkdir(path.dirname(errorPath), { recursive: true });
+
+                await resizeForInvoicePopup(page);
+
+                const invoiceModal = getInvoiceModal(page);
+                await invoiceModal.scrollIntoViewIfNeeded();
+                await invoiceModal.screenshot({
+                    path: errorPath,
+                    animations: "disabled",
+                });
+
+                console.warn(`[WARN] Invoice detail error captured (popup area): ${errorPath}`);
+                return true;
+            } catch (error) {
+                if ((error as Error).message.includes('has been closed') || (error as Error).message.includes('Target page')) {
+                    console.warn('[WARN] Page closed while checking invoice error state');
+                    return false;
+                }
+
+                console.warn(`[WARN] Could not capture invoice error state: ${(error as Error).message}`);
                 try {
-                    if (await locator.isVisible({ timeout: 2000 })) {
-                        const errorPath = path.join('test-results', `${testInfo.project.name}-invoice-detail-error.png`);
-                        await fs.mkdir(path.dirname(errorPath), { recursive: true });
-
-                        // Capture only the popup area, not full page
-                        // Resize viewport to popup dimensions first (same formula as normal capture)
-                        const viewportHeight = await page.locator("iframe").first().evaluate((frameEl) => {
-                            if (!(frameEl instanceof HTMLIFrameElement)) return 1280;
-                            const doc = frameEl.contentDocument;
-                            const content = doc?.getElementById("content");
-                            const noPrint = doc?.querySelector<HTMLElement>(".no-print");
-                            return (content?.scrollHeight ?? 0) + (noPrint?.offsetHeight ?? 0) + 420;
-                        }).catch(() => 1280);
-
-                        await page.setViewportSize({
-                            width: 1280,
-                            height: Math.min(Math.max(viewportHeight, 1280), 4000),
-                        });
-
-                        // Find invoice popup and screenshot only that element
-                        const invoiceModal = page
-                            .locator("div")
-                            .filter({ has: page.getByText(/Hóa đơn chi tiết|Hoá đơn chi tiết/) })
-                            .filter({ has: page.locator("iframe") })
-                            .last();
-
-                        await invoiceModal.scrollIntoViewIfNeeded();
-                        await invoiceModal.screenshot({
-                            path: errorPath,
-                            animations: "disabled",
-                        });
-
-                        console.warn(`⚠️ Invoice detail error captured (popup area): ${errorPath}`);
-                        return true;
-                    }
-                } catch (error) {
-                    // Check if error is due to closed page
-                    if ((error as Error).message.includes('has been closed') || (error as Error).message.includes('Target page')) {
-                        console.warn('⚠️ Page closed while checking invoice error state');
-                        return false;
-                    }
-                    // Ignore other failures and continue checking other contexts
+                    const errorPath = path.join('err-screenshots', `${testInfo.project.name}-invoice-detail-error.png`);
+                    await fs.mkdir(path.dirname(errorPath), { recursive: true });
+                    await page.screenshot({ path: errorPath, fullPage: true });
+                    console.warn(`[WARN] Invoice detail error captured (full page fallback): ${errorPath}`);
+                    return true;
+                } catch (screenshotError) {
+                    console.warn(`[WARN] Could not take invoice error fallback screenshot: ${(screenshotError as Error).message}`);
+                    return true;
                 }
             }
 
-            return false;
         }
 
         async function captureInvoiceScreenshot(page: Page, testInfo: any): Promise<string> {
-            const screenshotPath = path.join('test-results', `${testInfo.project.name}-tap-hoa-xe-lam.png`);
+            // Check if page is closed before starting
+            if (page.isClosed()) {
+                console.warn('⚠️ Page is closed; cannot capture invoice screenshot');
+                return '';
+            }
+
+            // Reuse existing error check: if error detected, it's already saved to err-screenshots
+            const errorDetected = await captureInvoiceErrorState(page, testInfo);
+            if (errorDetected) {
+                console.log('⚠️ Invoice error detected and captured by captureInvoiceErrorState, skipping pass screenshot');
+                return '';
+            }
+
+            const screenshotPath = path.join('pass-screenshots', `${testInfo.project.name}-tap-hoa-xe-lam.png`);
 
             try {
-                // Check if page is closed before starting
-                if (page.isClosed()) {
-                    console.warn('⚠️ Page is closed; cannot capture invoice screenshot');
-                    return '';
-                }
 
                 // Wait for iframe content to load
                 const invoiceFrame = page.frameLocator("iframe").first();
                 await invoiceFrame.locator("#loading").waitFor({ state: "hidden", timeout: 30000 }).catch(() => { });
+
+                if (await captureInvoiceErrorState(page, testInfo)) {
+                    console.log('[WARN] Invoice error detected after iframe load, skipping pass screenshot');
+                    return '';
+                }
 
                 // Wait for invoice content
                 const invoiceContent = invoiceFrame.locator("#content");
@@ -470,6 +527,11 @@ test.describe('Checkout Flow Automation - All Websites', () => {
                 await expect(invoiceContent.getByText(/ĐƠN HÀNG:/i)).toBeVisible();
                 await expect(invoiceContent.getByText(/TỔNG THÀNH TIỀN/i)).toBeVisible({ timeout: 15_000 });
                 await expect(invoiceContent.getByText(/CẢM ƠN QUÝ KHÁCH/i)).toBeVisible({ timeout: 15_000 });
+
+                if (await captureInvoiceErrorState(page, testInfo)) {
+                    console.log('[WARN] Invoice error detected before pass screenshot, skipping pass screenshot');
+                    return '';
+                }
 
                 // Get the invoice modal for screenshot
                 const invoiceModal = page
@@ -514,6 +576,11 @@ test.describe('Checkout Flow Automation - All Websites', () => {
                 // Uses popup height formula: (content?.scrollHeight ?? 0) + (noPrint?.offsetHeight ?? 0) + 420
                 if (!page.isClosed()) {
                     try {
+                        if (await captureInvoiceErrorState(page, testInfo)) {
+                            console.log('[WARN] Invoice error detected during fallback, skipping pass screenshot');
+                            return '';
+                        }
+
                         await fs.mkdir(path.dirname(screenshotPath), { recursive: true });
 
                         // Calculate viewport height using iframe content reference (same as normal flow)
@@ -552,6 +619,11 @@ test.describe('Checkout Flow Automation - All Websites', () => {
                         console.warn(`⚠️ Could not take invoice popup screenshot: ${(fallbackError as Error).message}`);
                         // Ultimate fallback: full page screenshot
                         try {
+                            if (await captureInvoiceErrorState(page, testInfo)) {
+                                console.log('[WARN] Invoice error detected during full-page fallback, skipping pass screenshot');
+                                return '';
+                            }
+
                             await fs.mkdir(path.dirname(screenshotPath), { recursive: true });
                             await page.screenshot({ path: screenshotPath, fullPage: true });
                             console.log(`✅ Fallback full-page screenshot saved: ${screenshotPath}`);
@@ -604,7 +676,7 @@ test.describe('Checkout Flow Automation - All Websites', () => {
             if (errorMsg.includes('has been closed') || errorMsg.includes('Target page') || page.isClosed()) {
                 console.warn('⚠️ Page/context closed during invoice capture; skipping error screenshot');
             } else {
-                const errorPath = path.join('test-results', `${testInfo.project.name}-invoice-error.png`);
+                const errorPath = path.join('err-screenshots', `${testInfo.project.name}-invoice-error.png`);
                 if (!page.isClosed()) {
                     try {
                         await fs.mkdir(path.dirname(errorPath), { recursive: true });
@@ -703,8 +775,8 @@ test.describe('Checkout Flow Automation - All Websites', () => {
         } catch (error) {
             console.error(`\n❌ Error during checkout for ${websiteName}:`, error);
 
-            // Use absolute path for screenshot based on project root
-            const errorScreenshot = path.resolve(process.cwd(), 'test-results', 'screenshots', `${websiteName}_error.png`);
+            // Use absolute path for screenshot at project root err-screenshots folder
+            const errorScreenshot = path.resolve(process.cwd(), 'err-screenshots', `${websiteName}_error.png`);
             let screenshotSaved = false;
             let screenshotPathForReport: string | undefined;
 
@@ -715,7 +787,7 @@ test.describe('Checkout Flow Automation - All Websites', () => {
                     console.log(`✅ Error screenshot saved to: ${errorScreenshot}`);
                     screenshotSaved = true;
                     // Use relative path from project root for the report (more portable)
-                    screenshotPathForReport = path.join('test-results', 'screenshots', `${websiteName}_error.png`);
+                    screenshotPathForReport = path.join('err-screenshots', `${websiteName}_error.png`);
                 } catch (screenshotError) {
                     console.warn(`⚠️ Could not take failure screenshot: ${(screenshotError as Error).message}`);
                 }
