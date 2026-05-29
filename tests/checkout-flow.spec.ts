@@ -403,8 +403,36 @@ test.describe('Checkout Flow Automation - All Websites', () => {
                     if (await locator.isVisible({ timeout: 2000 })) {
                         const errorPath = path.join('test-results', `${testInfo.project.name}-invoice-detail-error.png`);
                         await fs.mkdir(path.dirname(errorPath), { recursive: true });
-                        await page.screenshot({ path: errorPath, fullPage: true });
-                        console.warn(`⚠️ Invoice detail error captured: ${errorPath}`);
+
+                        // Capture only the popup area, not full page
+                        // Resize viewport to popup dimensions first (same formula as normal capture)
+                        const viewportHeight = await page.locator("iframe").first().evaluate((frameEl) => {
+                            if (!(frameEl instanceof HTMLIFrameElement)) return 1280;
+                            const doc = frameEl.contentDocument;
+                            const content = doc?.getElementById("content");
+                            const noPrint = doc?.querySelector<HTMLElement>(".no-print");
+                            return (content?.scrollHeight ?? 0) + (noPrint?.offsetHeight ?? 0) + 420;
+                        }).catch(() => 1280);
+
+                        await page.setViewportSize({
+                            width: 1280,
+                            height: Math.min(Math.max(viewportHeight, 1280), 4000),
+                        });
+
+                        // Find invoice popup and screenshot only that element
+                        const invoiceModal = page
+                            .locator("div")
+                            .filter({ has: page.getByText(/Hóa đơn chi tiết|Hoá đơn chi tiết/) })
+                            .filter({ has: page.locator("iframe") })
+                            .last();
+
+                        await invoiceModal.scrollIntoViewIfNeeded();
+                        await invoiceModal.screenshot({
+                            path: errorPath,
+                            animations: "disabled",
+                        });
+
+                        console.warn(`⚠️ Invoice detail error captured (popup area): ${errorPath}`);
                         return true;
                     }
                 } catch (error) {
@@ -482,15 +510,55 @@ test.describe('Checkout Flow Automation - All Websites', () => {
                     return '';
                 }
 
-                // Fallback: full page screenshot (only if page is still open)
+                // Fallback: capture invoice popup with popup dimensions (same as normal flow)
+                // Uses popup height formula: (content?.scrollHeight ?? 0) + (noPrint?.offsetHeight ?? 0) + 420
                 if (!page.isClosed()) {
                     try {
                         await fs.mkdir(path.dirname(screenshotPath), { recursive: true });
-                        await page.screenshot({ path: screenshotPath, fullPage: true });
-                        console.log(`✅ Fallback screenshot saved: ${screenshotPath}`);
+
+                        // Calculate viewport height using iframe content reference (same as normal flow)
+                        const viewportHeight = await page.locator("iframe").first().evaluate((frameEl) => {
+                            if (!(frameEl instanceof HTMLIFrameElement)) return 1280;
+                            const doc = frameEl.contentDocument;
+                            const content = doc?.getElementById("content");
+                            const noPrint = doc?.querySelector<HTMLElement>(".no-print");
+                            return (content?.scrollHeight ?? 0) + (noPrint?.offsetHeight ?? 0) + 420;
+                        }).catch(() => {
+                            // If iframe evaluation fails, use invoice modal bounding box height
+                            return 1280;
+                        });
+
+                        await page.setViewportSize({
+                            width: 1280,
+                            height: Math.min(Math.max(viewportHeight, 1280), 4000),
+                        });
+
+                        // Get invoice modal and screenshot it
+                        const invoiceModal = page
+                            .locator("div")
+                            .filter({ has: page.getByText(/Hóa đơn chi tiết|Hoá đơn chi tiết/) })
+                            .filter({ has: page.locator("iframe") })
+                            .last();
+
+                        await invoiceModal.scrollIntoViewIfNeeded();
+                        await invoiceModal.screenshot({
+                            path: screenshotPath,
+                            animations: "disabled",
+                        });
+
+                        console.log(`✅ Invoice popup screenshot saved with popup dimensions: ${screenshotPath}`);
                         return screenshotPath;
                     } catch (fallbackError) {
-                        console.warn(`⚠️ Could not take fallback screenshot: ${(fallbackError as Error).message}`);
+                        console.warn(`⚠️ Could not take invoice popup screenshot: ${(fallbackError as Error).message}`);
+                        // Ultimate fallback: full page screenshot
+                        try {
+                            await fs.mkdir(path.dirname(screenshotPath), { recursive: true });
+                            await page.screenshot({ path: screenshotPath, fullPage: true });
+                            console.log(`✅ Fallback full-page screenshot saved: ${screenshotPath}`);
+                            return screenshotPath;
+                        } catch (ultimateError) {
+                            console.warn(`⚠️ Could not take any fallback screenshot: ${(ultimateError as Error).message}`);
+                        }
                     }
                 } else {
                     console.warn('⚠️ Page is closed; cannot take fallback screenshot');
