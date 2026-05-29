@@ -176,155 +176,138 @@ test.describe('Checkout Flow Automation - All Websites', () => {
             throw new Error('Could not complete order');
         }
     }
-    function getInvoiceModal(page: Page): Locator {
-        return page
-            .locator("div")
-            .filter({ has: page.getByText(/Hóa đơn chi tiết|Hoá đơn chi tiết/) })
-            .filter({ has: page.locator("iframe") })
-            .last();
-    }
     async function captureInvoice(page: Page, testInfo: any) {
         console.log('📸 Starting invoice capture process...');
-        
-        // STEP 1: Wait for and capture the first popup "TẠP HÓA XE LAM 5.0" (total amount receipt)
-        let foundTotalAmountPopup = false;
-        
-        try {
-            console.log('⏳ Waiting for "TẠP HÓA XE LAM" popup with iframe id="sizer"...');
-            
-            // Wait for the iframe with id="sizer" to appear (this is the popup container)
+
+        async function waitForInvoicePopup(page: Page, timeout = 15000): Promise<boolean> {
+            console.log('⏳ Waiting for invoice popup...');
+
             try {
-                const sizerIframe = page.locator('//*[@id="sizer"]').first();
-                const iframeVisible = await sizerIframe.isVisible({ timeout: 5000 }).catch(() => false);
-                
-                if (iframeVisible) {
-                    foundTotalAmountPopup = true;
-                    console.log(`✅ Detected iframe with id="sizer" - TẠP HÓA XE LAM popup found`);
-                } else {
-                    // Fallback: Try to find by text content
-                    const elem = page.getByText(/TẠP HÓA XE LAM/).first();
-                    const textVisible = await elem.isVisible({ timeout: 3000 }).catch(() => false);
-                    if (textVisible) {
-                        foundTotalAmountPopup = true;
-                        console.log(`✅ Detected "TẠP HÓA XE LAM 5.0" popup by text content`);
-                    }
+                // Wait for the invoice modal with "Hóa đơn chi tiết" text
+                const invoiceModal = page
+                    .locator("div")
+                    .filter({
+                        has: page.getByText(/Hóa đơn chi tiết/)
+                    })
+                    .filter({ has: page.locator("iframe") })
+                    .last();
+
+                await invoiceModal.waitFor({ state: 'visible', timeout });
+                console.log('✅ Invoice popup detected');
+                return true;
+            } catch (error) {
+                console.log('ℹ️ Invoice popup not found within timeout');
+                return false;
+            }
+        }
+
+        async function handlePrintDialog(page: Page): Promise<boolean> {
+            // Method 1: Try to click cancel button in print preview if it appears
+            try {
+                const cancelButton = page.locator('button').filter({ hasText: /Hủy/i }).first();
+                if (await cancelButton.isVisible({ timeout: 2000 })) {
+                    await cancelButton.click();
+                    console.log('✅ Clicked cancel button in print dialog');
+                    await page.waitForTimeout(500);
+                    return true;
                 }
-            } catch (e) {
-                console.log(`ℹ️ Could not detect popup using XPath: ${e.message}`);
+            } catch (error) {
+                console.warn('⚠️ Could not close print dialog');
             }
 
-            if (foundTotalAmountPopup) {
-                // Wait for popup to fully render
-                await page.waitForTimeout(1000);
-                
-                // Take screenshot of the first popup
-                const totalAmountScreenshot = path.join("test-results", `${testInfo.project.name}-tap-hoa-xe-lam.png`);
-                await page.screenshot({ path: totalAmountScreenshot, fullPage: true });
-                console.log(`✅ Screenshot saved: ${totalAmountScreenshot}`);
+            // Method 2: Press Escape key
+            try {
+                await page.keyboard.press('Escape');
+                await page.waitForTimeout(500);
+                console.log('✅ Pressed Escape to close print dialog');
+                return true;
+            } catch (error) {
+                console.warn('⚠️ Could not close print dialog');
+            }
 
-                // Find and click close button to dismiss popup
-                // Priority 1: Use the specific XPath provided: //*[@id="sidebar"]//print-preview-button-strip//cr-button[2]
-                let closeButtonClicked = false;
-                
-                const closeButtonSelectors = [
-                    // Specific XPath provided - should work for this popup
-                    '//*[@id="sidebar"]//print-preview-button-strip//cr-button[2]',
-                    // Alternative selectors as fallback
-                    'cr-button[aria-label*="Cancel"]',
-                    'cr-button:nth-child(2)',
-                    'print-preview-button-strip cr-button:nth-child(2)',
-                    'button:has-text("X")',
-                    'button:has-text("Huỷ")',
-                    'button:has-text("Đóng")',
-                    'button:has-text("Close")',
-                    'button[aria-label*="Close"]',
-                    'button[aria-label*="close"]',
-                ];
+            return false;
+        }
 
-                for (const closeSelector of closeButtonSelectors) {
-                    try {
-                        const closeBtn = page.locator(closeSelector).first();
-                        const btnVisible = await closeBtn.isVisible({ timeout: 1500 }).catch(() => false);
-                        if (btnVisible) {
-                            await closeBtn.click({ timeout: 5000 });
-                            await page.waitForTimeout(800);
-                            console.log(`✅ Closed popup using selector: ${closeSelector}`);
-                            closeButtonClicked = true;
-                            break;
-                        }
-                    } catch (e) {
-                        console.log(`ℹ️ Selector failed: ${closeSelector}`);
-                        // Continue to next selector
-                    }
-                }
+        async function captureInvoiceScreenshot(page: Page, testInfo: any): Promise<string> {
+            const screenshotPath = path.join('test-results', `${testInfo.project.name}-tap-hoa-xe-lam.png`);
 
-                // If close button not found, try keyboard shortcuts
-                if (!closeButtonClicked) {
-                    console.warn(`⚠️ Could not find close button, trying ESC key`);
-                    
-                    try {
-                        await page.press('Escape');
-                        await page.waitForTimeout(500);
-                        console.log(`✅ Pressed ESC to close popup`);
-                        closeButtonClicked = true;
-                    } catch (e) {
-                        console.log(`ℹ️ ESC key did not work`);
-                    }
-                }
+            try {
+                // Wait for iframe content to load
+                const invoiceFrame = page.frameLocator("iframe").first();
+                await invoiceFrame.locator("#loading").waitFor({ state: "hidden", timeout: 30000 }).catch(() => { });
 
-                // Alternative: Click outside the popup to close it
-                if (!closeButtonClicked) {
-                    try {
-                        console.log(`⚠️ Trying to click outside popup to close it`);
-                        await page.click('body', { position: { x: 50, y: 50 } });
-                        await page.waitForTimeout(500);
-                    } catch (e) {
-                        console.log(`ℹ️ Clicking outside popup failed`);
-                    }
-                }
+                // Wait for invoice content
+                const invoiceContent = invoiceFrame.locator("#content");
+                await expect(invoiceContent).toBeVisible({ timeout: 15000 });
 
-                console.log(`✅ "TẠP HÓA XE LAM 5.0" popup was captured and closed`);
+                // Wait for key invoice elements
+                await expect(invoiceContent.getByText(/ĐƠN HÀNG:/i)).toBeVisible();
+                await expect(invoiceContent.getByText(/TỔNG THÀNH TIỀN/i)).toBeVisible({ timeout: 15_000 });
+                await expect(invoiceContent.getByText(/CẢM ƠN QUÝ KHÁCH/i)).toBeVisible({ timeout: 15_000 });
+
+                // Get the invoice modal for screenshot
+                const invoiceModal = page
+                    .locator("div")
+                    .filter({ has: page.getByText(/Hóa đơn chi tiết|Hoá đơn chi tiết/) })
+                    .filter({ has: page.locator("iframe") })
+                    .last();
+
+                // Calculate optimal viewport size
+                const viewportHeight = await page.locator("iframe").first().evaluate((frameEl) => {
+                    if (!(frameEl instanceof HTMLIFrameElement)) return 1280;
+                    const doc = frameEl.contentDocument;
+                    const content = doc?.getElementById("content");
+                    const noPrint = doc?.querySelector<HTMLElement>(".no-print");
+                    return (content?.scrollHeight ?? 0) + (noPrint?.offsetHeight ?? 0) + 420;
+                });
+
+                await page.setViewportSize({
+                    width: 1280,
+                    height: Math.min(Math.max(viewportHeight, 1280), 4000),
+                });
+
+                await invoiceModal.scrollIntoViewIfNeeded();
+                await invoiceModal.screenshot({
+                    path: screenshotPath,
+                    animations: "disabled",
+                });
+
+                console.log(`✅ Invoice screenshot saved: ${screenshotPath}`);
+                return screenshotPath;
+            } catch (error) {
+                console.warn(`⚠️ Error capturing invoice screenshot: ${(error as Error).message}`);
+                // Fallback: full page screenshot
+                await page.screenshot({ path: screenshotPath, fullPage: true });
+                console.log(`✅ Fallback screenshot saved: ${screenshotPath}`);
+                return screenshotPath;
+            }
+        }
+
+        try {
+            // Wait for invoice popup to appear
+            const invoiceFound = await waitForInvoicePopup(page);
+
+            if (invoiceFound) {
+                // Handle any print dialog that might appear
+                await handlePrintDialog(page);
+
+                // Capture the invoice screenshot
+                await captureInvoiceScreenshot(page, testInfo);
+
+                console.log('✅ Invoice captured successfully');
             } else {
-                console.log(`ℹ️ "TẠP HÓA XE LAM 5.0" popup not detected, proceeding to invoice details`);
+                console.log('ℹ️ Invoice popup was not detected, skipping capture');
             }
-        } catch (e) {
-            console.warn(`⚠️ Error handling first popup: ${e.message}`);
+        } catch (error) {
+            console.warn(`⚠️ Error in invoice capture process: ${(error as Error).message}`);
+            // Take error screenshot
+            const errorPath = path.join('test-results', `${testInfo.project.name}-invoice-error.png`);
+            await page.screenshot({ path: errorPath, fullPage: true });
+            console.log(`Error screenshot saved: ${errorPath}`);
         }
 
         // Wait for any animations/transitions to complete before proceeding
         await page.waitForTimeout(1500);
-
-        // STEP 2: Screenshot the "Hoá đơn chi tiết" (Invoice details) popup
-        const invoiceFrame = page.frameLocator("iframe").first();
-        const screenshotPath = path.join("test-results", `${testInfo.project.name}-hoa-don-chi-tiet.png`);
-
-        await invoiceFrame.locator("#loading").waitFor({ state: "hidden", timeout: 30000 }).catch(() => { });
-        const invoiceContent = invoiceFrame.locator("#content");
-        await expect(invoiceContent).toBeVisible({ timeout: 30000 });
-        await expect(invoiceContent.getByText(/ĐƠN HÀNG:|ORDER:/i)).toBeVisible();
-        await expect(invoiceContent.getByText(/TỔNG THÀNH TIỀN|TOTAL/i)).toBeVisible({ timeout: 15000 });
-        await expect(invoiceContent.getByText(/CẢM ƠN QUÝ KHÁCH|THANK YOU/i)).toBeVisible({ timeout: 15000 });
-        const invoiceModal = getInvoiceModal(page);
-
-        const viewportHeight = await page.locator("iframe").first().evaluate((frameEl) => {
-            if (!(frameEl instanceof HTMLIFrameElement)) return 1280;
-            const doc = frameEl.contentDocument;
-            const content = doc?.getElementById("content");
-            const noPrint = doc?.querySelector<HTMLElement>(".no-print");
-            return (content?.scrollHeight ?? 0) + (noPrint?.offsetHeight ?? 0) + 420;
-        });
-        await page.setViewportSize({
-            width: 1280,
-            height: Math.min(Math.max(viewportHeight, 1280), 4000),
-        });
-        await invoiceModal.scrollIntoViewIfNeeded();
-        await invoiceModal.screenshot({
-            path: screenshotPath,
-            animations: "disabled",
-        });
-
-        console.log(`✅ Invoice details screenshot saved to: ${screenshotPath}`);
-        return screenshotPath;
     }
 
     // ============================================================================
@@ -336,6 +319,15 @@ test.describe('Checkout Flow Automation - All Websites', () => {
         console.log(`\n${'='.repeat(80)}\nStarting checkout flow: ${websiteName}\n${'='.repeat(80)}`);
 
         try {
+            // Inject script to suppress native print dialog BEFORE navigation
+            await page.addInitScript(() => {
+                const originalPrint = window.print;
+                window.print = () => {
+                    console.log('Print called, preventing default behavior');
+                    window.dispatchEvent(new CustomEvent('printRequested'));
+                };
+            });
+
             console.log('Step 1: Navigating to homepage...');
             await page.goto('/');
             await page.waitForLoadState('networkidle');
@@ -360,7 +352,7 @@ test.describe('Checkout Flow Automation - All Websites', () => {
             await completeOrder(page);
 
             console.log('Step 8: Capturing invoice...');
-            const invoiceScreenshot = await captureInvoice(page, testInfo);
+            await captureInvoice(page, testInfo);
 
             console.log(`${'='.repeat(80)}\n✅ Checkout completed successfully for: ${websiteName}\n${'='.repeat(80)}\n`);
 

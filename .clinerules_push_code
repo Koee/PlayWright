@@ -1,0 +1,29 @@
+## Git Workflow Rules
+
+### Commit Message Convention
+Luôn dùng Conventional Commits format:
+- feat: tính năng mới
+- fix: sửa bug
+- test: thêm/sửa test
+- refactor: refactor code
+- chore: update config, dependencies
+
+### Quy trình đẩy code
+Khi được yêu cầu push code, luôn thực hiện theo thứ tự:
+1. `git status` → kiểm tra file thay đổi
+2. `git diff` → xem nội dung thay đổi
+3. Đề xuất commit message phù hợp
+4. Hỏi xác nhận trước khi push
+5. `git add [files]`
+6. `git commit -m "[message]"`
+7. `git push origin [branch]`
+
+### Branch Naming
+- feature/[tên-tính-năng]
+- fix/[tên-bug]
+- test/[tên-test]
+
+### Không bao giờ
+- Push thẳng lên main/master mà không hỏi
+- Dùng `git add .` khi chỉ cần push 1 file
+- Force push (`git push -f`) trừ khi được yêu cầu rõ ràng
