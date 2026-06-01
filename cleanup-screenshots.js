@@ -2,7 +2,7 @@ const fs = require('fs/promises');
 const path = require('path');
 
 async function cleanupScreenshots() {
-    const dirs = ['err-screenshots', 'pass-screenshots'];
+    const dirs = ['test-results/err-screenshots', 'test-results/pass-screenshots'];
     for (const dir of dirs) {
         try {
             const files = await fs.readdir(dir);

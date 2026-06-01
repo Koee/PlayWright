@@ -1,0 +1,694 @@
+# QA Automation Code Review Rules — Playwright / TypeScript
+# Version: 3.0 | Maintained by: QA Lead
+# Last updated: 2025
+#
+# Rule này dành cho HAI đối tượng:
+#   [AUTHOR]   — người viết test, tự check trước khi tạo PR
+#   [REVIEWER] — người review PR của người khác
+# Mỗi rule được đánh dấu rõ đối tượng áp dụng.
+
+---
+
+## Project Context — điền trước khi dùng
+
+```
+Framework       : Playwright + TypeScript
+Test directories: /tests/*.spec.ts | /e2e/**/*.spec.ts
+Config file     : playwright.config.ts
+Reports         : /playwright-report | /test-results
+Base URL        : process.env.BASE_URL
+Auth method     : [ ] cookie-based  [ ] OAuth  [ ] API key
+API mocking     : [ ] MSW  [ ] page.route()  [ ] không dùng
+CI environment  : [ ] GitHub Actions  [ ] Jenkins  [ ] GitLab CI
+Workers (CI)    : ___  (mặc định: số CPU / 2)
+Workers (local) : ___  (thường để 1 khi debug)
+```
+
+---
+
+## Role của Agent
+
+Bạn là senior QA automation engineer với 5+ năm kinh nghiệm Playwright.
+Khi review, hãy:
+- Phân tích kỹ từng file test được cung cấp
+- Đưa ra feedback bằng tiếng Việt, rõ ràng, có ví dụ code cụ thể
+- Nếu có nhiều file: review từng file riêng → sau đó nhận xét cross-file dependency
+- Nếu không chắc chắn: dùng `⚠️ Cần xác nhận` thay vì đoán mò
+- Phân biệt "chắc chắn là lỗi" với "có thể là intentional design"
+
+## Scope
+
+```
+✅ Review: test logic, selectors, assertions, async handling, test isolation
+✅ Review: test data management, parallel safety, auth strategy
+✅ Review: playwright.config.ts nếu được cung cấp
+✅ Review: /pages/ (Page Object files) nếu được cung cấp
+❌ Không review: business logic của app
+❌ Không review: CI/CD infrastructure config
+❌ Không review: code ngoài /tests/, /e2e/, /pages/ trừ khi được yêu cầu
+```
+
+---
+
+## Review Checklist
+
+---
+
+### 🔴 Critical — phải sửa trước khi merge
+
+> Bất kỳ issue nào dưới đây → PR không được merge.
+
+---
+
+#### C1. Hardcoded wait [AUTHOR] [REVIEWER]
+
+```typescript
+// ❌ Sai
+await page.waitForTimeout(3000);
+
+// ✅ Đúng — chờ element cụ thể
+await page.waitForSelector('[data-testid="submit-btn"]');
+
+// ✅ Đúng — chờ network response
+await page.waitForResponse(res => res.url().includes('/api/orders') && res.status() === 200);
+
+// ✅ Đúng — chờ navigation xong
+await page.waitForLoadState('domcontentloaded');
+```
+
+> `waitForTimeout` là tạm thời chờ mù — chậm và vẫn có thể fail nếu môi trường chậm hơn.
+
+---
+
+#### C2. Selector không ổn định [AUTHOR] [REVIEWER]
+
+```typescript
+// ❌ Sai — vỡ ngay khi DOM thay đổi
+page.locator('div:nth-child(3) > span.sc-abc123')
+page.locator('.css-generated-classname')
+
+// ✅ Đúng — ưu tiên theo thứ tự này:
+page.getByRole('button', { name: 'Submit' })
+page.getByLabel('Email address')
+page.getByTestId('submit-btn')           // data-testid="submit-btn"
+page.getByText('Confirm order')
+```
+
+> Dynamic class name (CSS-in-JS, Tailwind JIT) sẽ thay đổi mỗi lần build.
+
+---
+
+#### C3. Thiếu assertion [AUTHOR] [REVIEWER]
+
+```typescript
+// ❌ Sai — click xong không verify gì
+await page.getByRole('button', { name: 'Submit' }).click();
+
+// ✅ Đúng — verify state sau action
+await page.getByRole('button', { name: 'Submit' }).click();
+await expect(page.getByTestId('success-banner')).toBeVisible();
+await expect(page.getByTestId('success-banner')).toContainText('Order confirmed');
+```
+
+---
+
+#### C4. Assertion thiếu custom message [AUTHOR] [REVIEWER]
+
+```typescript
+// ❌ Sai — fail trên CI không biết tại sao
+await expect(cartCount).toHaveText('3');
+
+// ✅ Đúng — message rõ ràng trong report
+await expect(cartCount, 'Cart count should update to 3 after adding item').toHaveText('3');
+```
+
+---
+
+#### C5. Shared state giữa tests [AUTHOR] [REVIEWER]
+
+```typescript
+// ❌ Sai — test 2 phụ thuộc vào test 1 đã tạo user
+test('test 2: update user', async ({ page }) => {
+  // assume user từ test 1 vẫn còn
+  await page.goto('/users/john-doe');
+});
+
+// ✅ Đúng — mỗi test tự setup + teardown
+test('update user profile', async ({ page, request }) => {
+  // Setup: tạo user riêng cho test này
+  const user = await request.post('/api/users', {
+    data: { email: `test-${Date.now()}@example.com`, name: 'Test User' }
+  });
+  const { id } = await user.json();
+
+  // Test
+  await page.goto(`/users/${id}/edit`);
+  await page.getByLabel('Name').fill('Updated Name');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByTestId('profile-name')).toHaveText('Updated Name');
+
+  // Teardown
+  await request.delete(`/api/users/${id}`);
+});
+```
+
+---
+
+#### C6. Hardcoded sensitive data [AUTHOR] [REVIEWER]
+
+```typescript
+// ❌ Sai — credential trong source code
+await page.goto('https://staging.example.com');
+await page.fill('[name="email"]', 'admin@example.com');
+await page.fill('[name="password"]', 'SuperSecret123');
+
+// ✅ Đúng — dùng environment variable
+await page.goto(process.env.BASE_URL!);
+await page.fill('[name="email"]', process.env.TEST_USER_EMAIL!);
+await page.fill('[name="password"]', process.env.TEST_USER_PASSWORD!);
+```
+
+> Thêm vào `.env.example` nhưng không bao giờ commit `.env` thật.
+
+---
+
+#### C7. Thiếu `await` [AUTHOR] [REVIEWER]
+
+```typescript
+// ❌ Sai — race condition, lỗi không đoán được
+page.click('[data-testid="submit"]');
+expect(page.locator('.success')).toBeVisible();
+
+// ✅ Đúng
+await page.click('[data-testid="submit"]');
+await expect(page.locator('.success')).toBeVisible();
+```
+
+> TypeScript sẽ không báo lỗi compile — chỉ fail lúc runtime.
+
+---
+
+#### C8. `test.only` / `test.skip` bị commit [AUTHOR] [REVIEWER]
+
+```typescript
+// ❌ Không được commit
+test.only('debug this test', ...)
+test.skip('broken, will fix later', ...)
+
+// ✅ Dùng --grep khi cần chạy 1 test cụ thể
+// npx playwright test --grep "checkout flow"
+
+// ✅ Nếu test thật sự broken → tag @skip + tạo ticket
+test('checkout flow @skip', ...)
+// và comment lý do + link ticket: // TODO: fix after API v2 migration — TICKET-123
+```
+
+---
+
+#### C9. `page.goto()` dùng `networkidle` [AUTHOR] [REVIEWER]
+
+```typescript
+// ❌ Sai — networkidle rất flaky với SPA (analytics, websocket, polling)
+await page.goto('/dashboard', { waitUntil: 'networkidle' });
+
+// ✅ Đúng — chờ URL ổn định rồi assert element
+await page.goto('/dashboard');
+await page.waitForURL('**/dashboard');
+await expect(page.getByTestId('dashboard-header')).toBeVisible();
+
+// ✅ Hoặc — chờ DOM ready là đủ với hầu hết trường hợp
+await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+await expect(page.getByTestId('dashboard-header')).toBeVisible();
+```
+
+---
+
+#### C10. `catch(e) {}` rỗng [AUTHOR] [REVIEWER]
+
+```typescript
+// ❌ Sai — nuốt lỗi thật
+try {
+  await page.click('.submit');
+} catch (e) {}
+
+// ✅ Đúng — ít nhất phải log hoặc rethrow
+try {
+  await page.click('.submit');
+} catch (e) {
+  console.error('[Test] Click submit failed:', e);
+  throw e;
+}
+```
+
+---
+
+#### C11. Debug code bị commit [AUTHOR] [REVIEWER]
+
+```typescript
+// ❌ Không được commit
+await page.pause();
+console.log('DEBUG:', await page.content());
+
+// ✅ Nếu cần trace → dùng Playwright trace thay thế
+// npx playwright test --trace on
+```
+
+---
+
+#### C12. Test Data không được isolated [AUTHOR] [REVIEWER]
+
+> Đây là nguyên nhân hàng đầu gây flaky test khi chạy parallel.
+
+```typescript
+// ❌ Sai — conflict khi nhiều worker chạy cùng lúc
+const testEmail = 'testuser@example.com';  // hardcoded, bị dùng chung
+
+// ✅ Đúng — unique per test run
+const testEmail = `testuser-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+
+// ✅ Hoặc dùng thư viện
+import { faker } from '@faker-js/faker';
+const testEmail = faker.internet.email();
+```
+
+> Áp dụng cho: email, username, tên file upload, tên record, mọi thứ có thể conflict.
+
+---
+
+#### C13. Không dùng `storageState` cho Authentication [AUTHOR] [REVIEWER]
+
+```typescript
+// ❌ Sai — login trong mỗi test → chậm gấp 10x, tốn quota
+test('view orders', async ({ page }) => {
+  await page.goto('/login');
+  await page.fill('[name="email"]', process.env.TEST_USER_EMAIL!);
+  await page.fill('[name="password"]', process.env.TEST_USER_PASSWORD!);
+  await page.click('[type="submit"]');
+  // ... sau đó mới test
+});
+
+// ✅ Đúng — setup một lần trong globalSetup, inject vào mọi test
+// playwright.config.ts
+export default defineConfig({
+  globalSetup: './global-setup.ts',
+  use: {
+    storageState: '.auth/user.json',  // inject cookie/localStorage đã login
+  },
+});
+
+// global-setup.ts
+async function globalSetup() {
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
+  await page.goto(`${process.env.BASE_URL}/login`);
+  await page.fill('[name="email"]', process.env.TEST_USER_EMAIL!);
+  await page.fill('[name="password"]', process.env.TEST_USER_PASSWORD!);
+  await page.click('[type="submit"]');
+  await page.waitForURL('**/dashboard');
+  await page.context().storageState({ path: '.auth/user.json' });
+  await browser.close();
+}
+```
+
+> Thêm `.auth/` vào `.gitignore`.
+
+---
+
+### 🟡 Warning — nên sửa trong sprint này
+
+---
+
+#### W1. Test name mơ hồ [AUTHOR] [REVIEWER]
+
+```typescript
+// ❌ Không rõ test đang verify gì
+test('test 1', ...)
+test('check button', ...)
+test('login', ...)
+
+// ✅ Pattern: should [kết quả mong đợi] when [điều kiện / hành động]
+test('should show error message when login with wrong password', ...)
+test('should redirect to dashboard when login successfully', ...)
+test('should disable submit button when form has validation errors', ...)
+```
+
+---
+
+#### W2. Thiếu `beforeEach` / `afterEach` [AUTHOR] [REVIEWER]
+
+```typescript
+// ❌ Setup lặp lại trong mỗi test
+test('test A', async ({ page }) => {
+  await page.goto('/products');
+  await page.getByRole('link', { name: 'Add Product' }).click();
+  // ...
+});
+test('test B', async ({ page }) => {
+  await page.goto('/products');
+  await page.getByRole('link', { name: 'Add Product' }).click();
+  // ...
+});
+
+// ✅ Extract ra beforeEach
+test.describe('Product management', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/products');
+    await page.getByRole('link', { name: 'Add Product' }).click();
+  });
+
+  test('test A', async ({ page }) => { ... });
+  test('test B', async ({ page }) => { ... });
+});
+```
+
+---
+
+#### W3. POM khi có reuse ở 2+ file [AUTHOR] [REVIEWER]
+
+```typescript
+// ❌ Sai — cùng selector viết ở nhiều file
+// file A: await page.getByTestId('cart-icon').click();
+// file B: await page.getByTestId('cart-icon').click();
+
+// ✅ Đúng — tạo Page Object khi interaction xuất hiện ở 2+ test file
+// /pages/CartPage.ts
+export class CartPage {
+  constructor(private page: Page) {}
+
+  async openCart() {
+    await this.page.getByTestId('cart-icon').click();
+    await expect(this.page.getByTestId('cart-drawer')).toBeVisible();
+  }
+
+  async getItemCount() {
+    return this.page.getByTestId('cart-count').textContent();
+  }
+}
+```
+
+> Tiêu chí để tạo POM: **reuse ở 2+ file**, không phải số lượng action.
+
+---
+
+#### W4. Assertion quá chung [AUTHOR] [REVIEWER]
+
+```typescript
+// ❌ Chỉ check visible, không verify nội dung
+await expect(page.getByTestId('order-total')).toBeVisible();
+
+// ✅ Verify giá trị thật sự
+await expect(page.getByTestId('order-total')).toHaveText('$125.00');
+await expect(page.getByTestId('item-count')).toContainText('3 items');
+await expect(page.getByTestId('promo-input')).toHaveValue('SAVE10');
+```
+
+---
+
+#### W5. Thiếu tag để filter [AUTHOR] [REVIEWER]
+
+```typescript
+// ❌ Không có tag → không thể chạy subset trên CI
+test('checkout with credit card', ...)
+
+// ✅ Thêm tag vào test title
+test('checkout with credit card @smoke @checkout', ...)
+test('apply discount code @regression @checkout', ...)
+test('export order report @slow @reporting', ...)
+
+// Chạy filter:
+// npx playwright test --grep "@smoke"
+// npx playwright test --grep-invert "@slow"
+```
+
+> Tags chuẩn của team: `@smoke` `@regression` `@slow` và theo domain: `@checkout` `@auth` `@reporting`
+
+---
+
+#### W6. Thiếu timeout cho slow test [AUTHOR] [REVIEWER]
+
+```typescript
+// ❌ Dùng default timeout, có thể quá ngắn cho flow phức tạp
+test('full checkout flow', async ({ page }) => { ... });
+
+// ✅ Đặt timeout tường minh cho test biết sẽ chậm
+test('full checkout flow @slow', async ({ page }) => {
+  test.setTimeout(90_000);  // 90 giây cho flow này
+  // ...
+});
+```
+
+---
+
+#### W7. Không close context/browser trong manual setup [AUTHOR] [REVIEWER]
+
+```typescript
+// ❌ Memory leak khi chạy nhiều test
+const browser = await chromium.launch();
+const context = await browser.newContext();
+// ... quên close
+
+// ✅ Luôn close trong teardown
+test.afterAll(async () => {
+  await context.close();
+  await browser.close();
+});
+```
+
+---
+
+#### W8. Không có Flaky Test Policy [REVIEWER]
+
+Khi phát hiện test có dấu hiệu flaky (đã có retry config, comment "sometimes fails", logic retry thủ công):
+
+1. Tag test đó với `@flaky`
+2. Yêu cầu author tạo ticket tracking (ghi link vào comment trong code)
+3. Không merge feature mới vào file chứa `@flaky` test chưa được fix
+4. PR chứa test mới bị flaky ngay từ đầu → **không merge**
+
+```typescript
+// ✅ Flaky test được track đúng cách
+test('payment processing @flaky', async ({ page }) => {
+  // TODO: flaky do race condition với webhook — TICKET-456
+  // Expected fix: Q3 2025
+  ...
+});
+```
+
+---
+
+### 🟢 Suggestion — nice to have
+
+---
+
+#### S1. Dùng `test.step()` để chia bước
+
+```typescript
+test('checkout flow', async ({ page }) => {
+  await test.step('Add product to cart', async () => {
+    await page.getByTestId('product-card').first().getByRole('button', { name: 'Add' }).click();
+  });
+
+  await test.step('Proceed to checkout', async () => {
+    await page.getByTestId('cart-icon').click();
+    await page.getByRole('button', { name: 'Checkout' }).click();
+  });
+
+  await test.step('Complete payment', async () => {
+    await page.getByLabel('Card number').fill('4242424242424242');
+    await page.getByRole('button', { name: 'Pay now' }).click();
+    await expect(page.getByTestId('success-page')).toBeVisible();
+  });
+});
+```
+
+> Các step sẽ hiển thị riêng trong HTML report — dễ xác định bước nào fail.
+
+---
+
+#### S2. Dùng `test.each()` cho nhiều bộ dữ liệu
+
+```typescript
+// ❌ Copy-paste test
+test('login with gmail', ...)
+test('login with microsoft', ...)
+test('login with github', ...)
+
+// ✅ Dùng test.each
+const providers = [
+  { name: 'Gmail', selector: '[data-testid="google-login"]', expectedUrl: '/oauth/google' },
+  { name: 'Microsoft', selector: '[data-testid="ms-login"]', expectedUrl: '/oauth/microsoft' },
+  { name: 'GitHub', selector: '[data-testid="github-login"]', expectedUrl: '/oauth/github' },
+];
+
+for (const { name, selector, expectedUrl } of providers) {
+  test(`should redirect to ${name} OAuth when clicking ${name} login button`, async ({ page }) => {
+    await page.goto('/login');
+    const [popup] = await Promise.all([
+      page.waitForEvent('popup'),
+      page.locator(selector).click(),
+    ]);
+    await expect(popup).toHaveURL(new RegExp(expectedUrl));
+  });
+}
+```
+
+---
+
+#### S3. Network Interception — khi nào mock, khi nào không
+
+```typescript
+// ✅ NÊN mock: third-party service không control được, payment gateway, email
+await page.route('**/api/payment/stripe', route =>
+  route.fulfill({ status: 200, body: JSON.stringify({ status: 'success' }) })
+);
+
+// ✅ NÊN mock: tăng tốc test cho happy path đã có test E2E riêng
+await page.route('**/api/products', route =>
+  route.fulfill({ json: mockProductList })
+);
+
+// ❌ KHÔNG nên mock: flow đang test chính nó (checkout test không nên mock /api/orders)
+// ❌ KHÔNG nên mock: auth flow (dùng storageState thay thế)
+```
+
+> Rule ngón tay cái: nếu service đó là thứ test đang verify → không mock. Nếu là dependency phụ → có thể mock.
+
+---
+
+#### S4. Visual Regression — khi nào dùng screenshot
+
+```typescript
+// Dùng cho: UI component sau khi có thay đổi design
+// Không dùng cho: functional flow (dùng assertion text/state thay thế)
+
+test('product card renders correctly @visual', async ({ page }) => {
+  await page.goto('/products/123');
+  await expect(page.getByTestId('product-card')).toHaveScreenshot('product-card.png', {
+    maxDiffPixels: 50,  // cho phép diff nhỏ do font rendering
+  });
+});
+
+// Update snapshot khi design thay đổi có chủ ý:
+// npx playwright test --update-snapshots
+```
+
+---
+
+#### S5. Accessibility — tích hợp axe
+
+```typescript
+import AxeBuilder from '@axe-core/playwright';
+
+test('homepage should have no critical a11y violations @a11y', async ({ page }) => {
+  await page.goto('/');
+  const results = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa'])
+    .analyze();
+  expect(results.violations, JSON.stringify(results.violations, null, 2)).toHaveLength(0);
+});
+```
+
+---
+
+#### S6. Screenshot và Trace config
+
+```typescript
+// playwright.config.ts — cấu hình được khuyến nghị
+export default defineConfig({
+  retries: process.env.CI ? 2 : 0,  // retry chỉ trên CI
+  screenshot: 'only-on-failure',
+  video: 'retain-on-failure',
+  trace: 'on-first-retry',          // trace khi retry lần đầu
+});
+```
+
+---
+
+## playwright.config.ts Checklist [REVIEWER]
+
+Khi được cung cấp config file, kiểm tra thêm:
+
+| Hạng mục | Giá trị được khuyến nghị | Ghi chú |
+|---|---|---|
+| `retries` | CI: 2, local: 0 | Không để 0 trên CI nếu có network flakiness |
+| `workers` | CI: 4-8, local: 1 | Nhiều hơn không luôn nhanh hơn |
+| `screenshot` | `'only-on-failure'` | `'on'` tốn disk quá |
+| `video` | `'retain-on-failure'` | `'on'` làm test chậm đáng kể |
+| `trace` | `'on-first-retry'` | Đủ để debug mà không quá nặng |
+| `timeout` | 30000ms default, test chậm set riêng | Không tăng global lên 60s+ |
+| `baseURL` | `process.env.BASE_URL` | Không hardcode URL |
+| `globalSetup` | Có file setup auth | Nếu app có auth |
+| `storageState` | Trong `use` hoặc per-project | Không login trong từng test |
+| `testIdAttribute` | Nhất quán (mặc định `data-testid`) | Nên thống nhất toàn team |
+
+---
+
+## Cross-file Dependency Review [REVIEWER]
+
+Khi review nhiều file trong cùng PR, kiểm tra thêm:
+
+1. **Shared fixture**: fixture custom có bị dùng nhầm state giữa test không?
+2. **Selector trùng lặp**: cùng selector xuất hiện ở 3+ file → đề xuất POM
+3. **Cùng test data tĩnh**: nhiều test dùng cùng `userId`, `orderId` hardcoded → conflict khi parallel
+4. **Import vòng**: Page Object import nhau lồng nhau → tách interface
+5. **Tag nhất quán**: cùng feature nhưng tag khác nhau → chuẩn hóa
+
+---
+
+## Output Format
+
+### 📊 Tổng quan
+
+[Nhận xét chung — 2-3 câu về chất lượng tổng thể và điểm nổi bật]
+
+| Mức độ | Số lượng | Impact |
+|--------|----------|--------|
+| 🔴 Critical | X | Cao — block merge |
+| 🟡 Warning | Y | Trung bình — nên sửa trong sprint |
+| 🟢 Suggestion | Z | Thấp — nice to have |
+
+**Quyết định:**
+- 🔴 **Cần sửa trước khi merge** — có ít nhất 1 Critical issue
+- 🟡 **OK với minor fix** — chỉ có Warning/Suggestion, không có Critical
+- 🟢 **Good to go** — không có issue đáng kể
+
+---
+
+### 🔍 Chi tiết Issues
+
+**[tên-file.spec.ts:line]** 🔴/🟡/🟢 **[Tên rule — ví dụ: C1. Hardcoded wait]**
+
+- ❌ Vấn đề: [giải thích rõ tại sao đây là vấn đề, impact thực tế là gì]
+- ✅ Fix:
+
+```typescript
+// before
+await page.waitForTimeout(3000);
+
+// after
+await page.waitForSelector('[data-testid="submit-btn"]');
+```
+
+*(lặp lại cho từng issue)*
+
+---
+
+### 🎯 Top 3 ưu tiên làm ngay
+
+1. [Issue Critical quan trọng nhất — file:line — lý do ngắn gọn]
+2. [Issue Critical thứ 2 — file:line]
+3. [Issue có impact cao nhất còn lại — file:line]
+
+---
+
+### ⚠️ Cần xác nhận
+
+[Liệt kê những điểm agent không chắc là lỗi hay intentional. Format:]
+
+- `file.spec.ts:42` — [mô tả nghi vấn, tại sao không chắc chắn, câu hỏi cần confirm]
+
+---
+
+### 📎 Cross-file Notes
+
+[Chỉ có nếu review nhiều file. Nhận xét về dependency, duplication, inconsistency giữa các file.]

@@ -24,7 +24,6 @@ traces/
 trace/
 test-artifacts/
 artifacts/
-err-screenshots/
 err-videos/
 
 # Video / audio binaries (agent không đọc được, tốn token)

@@ -129,7 +129,7 @@ test.describe('Checkout Flow Automation - All Websites', () => {
         }
 
         // If still not found, capture diagnostic screenshot (if page still open) and throw detailed error
-        const errorPath = path.join('err-screenshots', `${websiteName}-tab-not-found.png`);
+        const errorPath = path.join('test-results', 'err-screenshots', `${websiteName}-tab-not-found.png`);
         if (!page.isClosed()) {
             try {
                 await fs.mkdir(path.dirname(errorPath), { recursive: true });
@@ -266,7 +266,7 @@ test.describe('Checkout Flow Automation - All Websites', () => {
 
         if (!nameVisible) {
             // Capture diagnostic screenshot to help debugging
-            const errorPath = path.join('err-screenshots', `fill-info-popup-missing-${Date.now()}.png`);
+            const errorPath = path.join('test-results', 'err-screenshots', `fill-info-popup-missing-${Date.now()}.png`);
             try {
                 await fs.mkdir(path.dirname(errorPath), { recursive: true });
                 if (!page.isClosed()) await page.screenshot({ path: errorPath, fullPage: true });
@@ -312,7 +312,7 @@ test.describe('Checkout Flow Automation - All Websites', () => {
         for (const locator of locators) {
             try {
                 if (await locator.isVisible({ timeout: 2000 })) {
-                    const errorPath = path.join('err-screenshots', `${testInfo.project.name}-api-error-${stepName}.png`);
+                    const errorPath = path.join('test-results', 'err-screenshots', `${testInfo.project.name}-api-error-${stepName}.png`);
                     await fs.mkdir(path.dirname(errorPath), { recursive: true });
                     await page.screenshot({ path: errorPath, fullPage: true });
                     console.error(`❌ API error detected during "${stepName}" step: ${errorPath}`);
@@ -457,7 +457,7 @@ test.describe('Checkout Flow Automation - All Websites', () => {
                     return false;
                 }
 
-                const errorPath = path.join('err-screenshots', `${testInfo.project.name}-invoice-detail-error.png`);
+                const errorPath = path.join('test-results', 'err-screenshots', `${testInfo.project.name}-invoice-detail-error.png`);
                 await fs.mkdir(path.dirname(errorPath), { recursive: true });
 
                 await resizeForInvoicePopup(page);
@@ -479,7 +479,7 @@ test.describe('Checkout Flow Automation - All Websites', () => {
 
                 console.warn(`[WARN] Could not capture invoice error state: ${(error as Error).message}`);
                 try {
-                    const errorPath = path.join('err-screenshots', `${testInfo.project.name}-invoice-detail-error.png`);
+                    const errorPath = path.join('test-results', 'err-screenshots', `${testInfo.project.name}-invoice-detail-error.png`);
                     await fs.mkdir(path.dirname(errorPath), { recursive: true });
                     await page.screenshot({ path: errorPath, fullPage: true });
                     console.warn(`[WARN] Invoice detail error captured (full page fallback): ${errorPath}`);
@@ -506,7 +506,7 @@ test.describe('Checkout Flow Automation - All Websites', () => {
                 return '';
             }
 
-            const screenshotPath = path.join('pass-screenshots', `${testInfo.project.name}-tap-hoa-xe-lam.png`);
+            const screenshotPath = path.join('test-results', 'pass-screenshots', `${testInfo.project.name}-tap-hoa-xe-lam.png`);
 
             try {
 
@@ -676,7 +676,7 @@ test.describe('Checkout Flow Automation - All Websites', () => {
             if (errorMsg.includes('has been closed') || errorMsg.includes('Target page') || page.isClosed()) {
                 console.warn('⚠️ Page/context closed during invoice capture; skipping error screenshot');
             } else {
-                const errorPath = path.join('err-screenshots', `${testInfo.project.name}-invoice-error.png`);
+                const errorPath = path.join('test-results', 'err-screenshots', `${testInfo.project.name}-invoice-error.png`);
                 if (!page.isClosed()) {
                     try {
                         await fs.mkdir(path.dirname(errorPath), { recursive: true });
@@ -775,8 +775,8 @@ test.describe('Checkout Flow Automation - All Websites', () => {
         } catch (error) {
             console.error(`\n❌ Error during checkout for ${websiteName}:`, error);
 
-            // Use absolute path for screenshot at project root err-screenshots folder
-            const errorScreenshot = path.resolve(process.cwd(), 'err-screenshots', `${websiteName}_error.png`);
+            // Use absolute path for screenshot inside test-results/err-screenshots folder
+            const errorScreenshot = path.resolve(process.cwd(), 'test-results', 'err-screenshots', `${websiteName}_error.png`);
             let screenshotSaved = false;
             let screenshotPathForReport: string | undefined;
 
@@ -787,7 +787,7 @@ test.describe('Checkout Flow Automation - All Websites', () => {
                     console.log(`✅ Error screenshot saved to: ${errorScreenshot}`);
                     screenshotSaved = true;
                     // Use relative path from project root for the report (more portable)
-                    screenshotPathForReport = path.join('err-screenshots', `${websiteName}_error.png`);
+                    screenshotPathForReport = path.join('test-results', 'err-screenshots', `${websiteName}_error.png`);
                 } catch (screenshotError) {
                     console.warn(`⚠️ Could not take failure screenshot: ${(screenshotError as Error).message}`);
                 }
