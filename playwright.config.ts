@@ -7,7 +7,19 @@ import { defineConfig, devices } from '@playwright/test';
  */
 import dotenv from 'dotenv';
 import path from 'path';
-dotenv.config({ path: path.resolve(__dirname, '.env') });
+dotenv.config({ path: path.resolve(__dirname, '.env'), quiet: true });
+
+const requiredEnv = (name: string) => {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+};
+
+const SERIAL_WORKERS = 1;
+const ACTION_TIMEOUT_MS = 15000;
+const NAVIGATION_TIMEOUT_MS = 30000;
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -15,13 +27,13 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 export default defineConfig({
   testDir: './tests',
   /* Run tests in files in parallel */
-  fullyParallel: true,
+  fullyParallel: false,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  /* Clipboard/Paint tests use shared OS state, so keep the suite serial. */
+  workers: SERIAL_WORKERS,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ['html', { outputFolder: 'playwright-report', open: 'never' }],
@@ -31,25 +43,29 @@ export default defineConfig({
   use: {
     /* Base URL to use in actions like `await page.goto('')`. */
     // baseURL: 'http://localhost:3000',
+    headless: true,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+    permissions: ['clipboard-read', 'clipboard-write'],
 
     /* Set timeout for each action */
-    actionTimeout: 15000,
+    actionTimeout: ACTION_TIMEOUT_MS,
 
     /* Set timeout for navigation */
-    navigationTimeout: 30000,
+    navigationTimeout: NAVIGATION_TIMEOUT_MS,
   },
 
-  /* Configure projects for 6 different websites */
+  /* Configure projects for 7 different websites */
   projects: [
     // Project 1: tuoixanhnhanhngon.timdaythay.com
     {
       name: 'tuoixanhnhanhngon',
       use: {
         ...devices['Desktop Chrome'],
-        baseURL: 'https://tuoixanhnhanhngon.timdaythay.com/?nvsale=nguyena_0989336674',
+        baseURL: requiredEnv('BASE_URL_TUOIXANHNHANHNGON'),
       },
     },
 
@@ -58,7 +74,7 @@ export default defineConfig({
       name: 'tegianoitro',
       use: {
         ...devices['Desktop Chrome'],
-        baseURL: 'https://tegianoitro.timdaythay.com/?nvsale=dangthanhtuan_0913103769',
+        baseURL: requiredEnv('BASE_URL_TEGIANOITRO'),
       },
     },
 
@@ -67,7 +83,7 @@ export default defineConfig({
       name: 'danongdichthuc',
       use: {
         ...devices['Desktop Chrome'],
-        baseURL: 'https://danongdichthuc.timdaythay.com/?nvsale=dangthanhtuan_0913103769',
+        baseURL: requiredEnv('BASE_URL_DANONGDICHTHUC'),
       },
     },
 
@@ -76,7 +92,7 @@ export default defineConfig({
       name: 'hangthietyeu',
       use: {
         ...devices['Desktop Chrome'],
-        baseURL: 'https://hangthietyeu.timdaythay.com/',
+        baseURL: requiredEnv('BASE_URL_HANGTHIETYEU'),
       },
     },
 
@@ -85,7 +101,7 @@ export default defineConfig({
       name: 'nhanquocdan',
       use: {
         ...devices['Desktop Chrome'],
-        baseURL: 'https://nhanquocdan.timdaythay.com/?nvsale=nguyena_0989336674',
+        baseURL: requiredEnv('BASE_URL_NHANQUOCDAN'),
       },
     },
 
@@ -94,14 +110,14 @@ export default defineConfig({
       name: 'si',
       use: {
         ...devices['Desktop Chrome'],
-        baseURL: 'https://si.timdaythay.com/?nvsale=nguyena_0989336674',
+        baseURL: requiredEnv('BASE_URL_SI'),
       },
     },
     {
       name: 'thegioiphaidep',
       use: {
         ...devices['Desktop Chrome'],
-        baseURL: 'https://thegioiphaidep.timdaythay.com/',
+        baseURL: requiredEnv('BASE_URL_THEGIOIPHAIDEP'),
       },
     },
   ],
