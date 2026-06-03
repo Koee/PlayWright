@@ -32,7 +32,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Clipboard/Paint tests use shared OS state, so keep the suite serial. */
+  /* Clipboard tests use shared OS state, so keep the suite serial. */
   workers: SERIAL_WORKERS,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
