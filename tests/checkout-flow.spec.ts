@@ -13,6 +13,33 @@ test.describe('Checkout Flow Automation - All Websites', () => {
     };
     const siWebsite = 'si';
 
+    function getProjectHomeUrl(testInfo: { project: { use: { baseURL?: string } } }) {
+        const baseURL = testInfo.project.use.baseURL?.trim();
+        return baseURL || '/';
+    }
+
+    function getUrlSearchParams(url: string) {
+        try {
+            return new URL(url).searchParams;
+        } catch {
+            return new URL(url, 'http://localhost').searchParams;
+        }
+    }
+
+    async function warnIfHomepageQueryWasDropped(page: Page, homeUrl: string) {
+        const expectedParams = getUrlSearchParams(homeUrl);
+        if ([...expectedParams].length === 0) {
+            return;
+        }
+
+        const currentParams = getUrlSearchParams(page.url());
+        const droppedParams = [...expectedParams].filter(([key, value]) => currentParams.get(key) !== value);
+        if (droppedParams.length > 0) {
+            const expectedQuery = expectedParams.toString();
+            console.warn(`Homepage query was not preserved after load. Expected query: ${expectedQuery}. Current URL: ${page.url()}`);
+        }
+    }
+
     // Helper to build data-testid selector. Use stable test ids in app when possible.
     const tid = (id: string) => `[data-testid="${id}"]`;
 
@@ -21,15 +48,12 @@ test.describe('Checkout Flow Automation - All Websites', () => {
         tabSite: (site: string) => `tab-${site}`,
         tabText: (tabText: string) => `tab-${tabText}`,
         proceedToCheckout: 'proceed-to-checkout',
-        confirmPayment: 'confirm-payment',
         btnProceed: 'btn-proceed',
         inputName: 'input-name',
         inputRecipientName: 'input-recipient-name',
         inputPhone: 'input-phone',
         inputRecipientPhone: 'input-recipient-phone',
         confirmOrder: 'confirm-order',
-        productCardPrefix: 'product-',
-        bundleCardPrefix: 'bundle-card-',
         invoiceError: 'invoice-error',
         invoicePopup: 'invoice-popup',
     };
@@ -576,10 +600,6 @@ test.describe('Checkout Flow Automation - All Websites', () => {
         }).catch(() => '');
     }
 
-    async function saveInvoicePopupHtml(popup: Locator, testInfo: any): Promise<string | null> {
-        return null;
-    }
-
     async function captureInvalidInvoiceTarget(
         locator: Locator,
         testInfo: any,
@@ -836,7 +856,6 @@ test.describe('Checkout Flow Automation - All Websites', () => {
 
         await fs.mkdir(targetDir, { recursive: true }).catch(() => { });
         try {
-            await saveInvoicePopupHtml(popup, testInfo);
             if (hasInvoiceError || !hasMeaningfulContent) {
                 await screenshotVisibleElement(popup, targetPath);
             } else {
@@ -889,7 +908,6 @@ test.describe('Checkout Flow Automation - All Websites', () => {
                 continue;
             }
 
-            await saveInvoicePopupHtml(body, testInfo);
             const marker = `pw-invoice-frame-clone-${Date.now()}-${Math.random().toString(36).slice(2)}`;
             const snapshot = await frame.evaluate(() => {
                 const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
@@ -1461,12 +1479,6 @@ test.describe('Checkout Flow Automation - All Websites', () => {
             }
             throw error;
         }
-
-        // Wait for page to stabilize instead of fixed timeout (only if page is still open)
-        if (!page.isClosed()) {
-            await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => { });
-        }
-        throw new Error('Invoice capture finished without a screenshot result');
     }
 
     // ============================================================================
@@ -1482,7 +1494,6 @@ test.describe('Checkout Flow Automation - All Websites', () => {
         try {
             // Inject script to suppress native print dialog BEFORE navigation
             await page.addInitScript(() => {
-                const originalPrint = window.print;
                 window.print = () => {
                     console.log('Print called, preventing default behavior');
                     window.dispatchEvent(new CustomEvent('printRequested'));
@@ -1497,13 +1508,15 @@ test.describe('Checkout Flow Automation - All Websites', () => {
             // -------------------------------------------------------
             const dialogTracker = dialogHandler.setupDialogTracker(page);
 
-            console.log('Step 1: Navigating to homepage...');
-            await page.goto('/');
+            const homeUrl = getProjectHomeUrl(testInfo);
+            console.log(`Step 1: Navigating to homepage: ${homeUrl}`);
+            await page.goto(homeUrl);
             // Wait for page to be fully interactive instead of fixed timeout
             await page.waitForLoadState('domcontentloaded');
             await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
                 console.warn('Page did not reach networkidle during initial load, continuing with DOM-ready state.');
             });
+            await warnIfHomepageQueryWasDropped(page, homeUrl);
 
             // Check for dialog that might have appeared during navigation
             await dialogHandler.checkAndHandleDialog(page, dialogTracker, 'page-load');
