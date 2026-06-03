@@ -7,15 +7,55 @@ import { appendErrorReport } from './utils/error-report';
 test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
     test.setTimeout(360000);
 
+    const labels = {
+        singleBag: 'Túi đơn',
+        doubleBag: 'Túi đôi',
+        versatileBag: 'Túi đa dạng',
+        mergedOrder: 'Đơn ghép',
+        box: 'Chọn thùng',
+        checkout: 'Thanh toán',
+        order: 'Đặt Hàng',
+        copy: 'Sao Chép',
+        copied: 'Đã sao chép',
+        processing: 'Đang xử lý',
+    } as const;
+
+    function getProjectHomeUrl(testInfo: { project: { use: { baseURL?: string } } }) {
+        const baseURL = testInfo.project.use.baseURL?.trim();
+        return baseURL || '/';
+    }
+
+    function getUrlSearchParams(url: string) {
+        try {
+            return new URL(url).searchParams;
+        } catch {
+            return new URL(url, 'http://localhost').searchParams;
+        }
+    }
+
+    async function warnIfHomepageQueryWasDropped(page: Page, homeUrl: string) {
+        const expectedParams = getUrlSearchParams(homeUrl);
+        if ([...expectedParams].length === 0) {
+            return;
+        }
+
+        const currentParams = getUrlSearchParams(page.url());
+        const droppedParams = [...expectedParams].filter(([key, value]) => currentParams.get(key) !== value);
+        if (droppedParams.length > 0) {
+            const expectedQuery = expectedParams.toString();
+            console.warn(`Homepage query was not preserved after load. Expected query: ${expectedQuery}. Current URL: ${page.url()}`);
+        }
+    }
+
     // Configuration for tabs to test
     const tabsToTestDefault = [
-        { tabName: 'Túi đơn', displayName: 'Tui-Don', selectors: ['text=Túi đơn', 'button:has-text("Túi đơn")', '[data-testid*="tab"][text="Túi đơn"]', 'text=Đơn ghép', 'button:has-text("Đơn ghép")', '[data-testid*="tab"][text="Đơn ghép"]'] },
-        { tabName: 'Túi đôi', displayName: 'Tui-Doi', selectors: ['text=Túi đôi', 'button:has-text("Túi đôi")', '[data-testid*="tab"][text="Túi đôi"]'] },
-        { tabName: 'Túi đa dạng', displayName: 'Tui-Da-Dang', selectors: ['text=Túi đa dạng', 'button:has-text("Túi đa dạng")', '[data-testid*="tab"][text="Túi đa dạng"]'] },
+        { tabName: labels.singleBag, displayName: 'Tui-Don', selectors: [`text=${labels.singleBag}`, `button:has-text("${labels.singleBag}")`, `[data-testid*="tab"][text="${labels.singleBag}"]`, `text=${labels.mergedOrder}`, `button:has-text("${labels.mergedOrder}")`, `[data-testid*="tab"][text="${labels.mergedOrder}"]`] },
+        { tabName: labels.doubleBag, displayName: 'Tui-Doi', selectors: [`text=${labels.doubleBag}`, `button:has-text("${labels.doubleBag}")`, `[data-testid*="tab"][text="${labels.doubleBag}"]`] },
+        { tabName: labels.versatileBag, displayName: 'Tui-Da-Dang', selectors: [`text=${labels.versatileBag}`, `button:has-text("${labels.versatileBag}")`, `[data-testid*="tab"][text="${labels.versatileBag}"]`] },
     ];
 
     const tabsToTestSi = [
-        { tabName: 'Chọn thùng', displayName: 'Chon-Thung', selectors: ['text=Chọn thùng', 'button:has-text("Chọn thùng")', '[data-testid*="tab"][text="Chọn thùng"]'] },
+        { tabName: labels.box, displayName: 'Chon-Thung', selectors: [`text=${labels.box}`, `button:has-text("${labels.box}")`, `[data-testid*="tab"][text="${labels.box}"]`] },
     ];
 
     // Helper function to get tabs for specific website
@@ -23,16 +63,14 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
         return websiteName === 'si' ? tabsToTestSi : tabsToTestDefault;
     };
 
-    // Helper to build data-testid selector
-    const tid = (id: string) => `[data-testid="${id}"]`;
     const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
     const getTabAliases = (tabName: string): string[] => {
         const aliases: Record<string, string[]> = {
-            'Túi đơn': ['Túi đơn', 'Túi Đơn', 'Đơn ghép', 'Túi Đơn Ghép', 'Túi Đơn ghép'],
-            'Túi đôi': ['Túi đôi', 'Túi Đôi'],
-            'Túi đa dạng': ['Túi đa dạng', 'Túi Đa Dạng'],
-            'Chọn thùng': ['Chọn thùng', 'Chọn Thùng'],
+            [labels.singleBag]: [labels.singleBag, 'Túi Đơn', labels.mergedOrder, 'Túi Đơn Ghép', 'Túi Đơn ghép'],
+            [labels.doubleBag]: [labels.doubleBag, 'Túi Đôi'],
+            [labels.versatileBag]: [labels.versatileBag, 'Túi Đa Dạng'],
+            [labels.box]: [labels.box, 'Chọn Thùng'],
         };
 
         return aliases[tabName] ?? [tabName];
@@ -85,7 +123,7 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
     };
 
     const findUsableCheckoutButtonInCard = async (card: Locator): Promise<Locator | null> => {
-        const buttons = card.locator('button').filter({ hasText: /^\s*Thanh toán\s*$/i });
+        const buttons = card.locator('button').filter({ hasText: new RegExp(`^\\s*${escapeRegExp(labels.checkout)}\\s*$`, 'i') });
         const buttonCount = await buttons.count();
 
         for (let buttonIndex = 0; buttonIndex < buttonCount; buttonIndex++) {
@@ -110,7 +148,7 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
         const errDir = path.join('test-results', 'err-screenshots');
         await fs.mkdir(passDir, { recursive: true });
         await fs.mkdir(errDir, { recursive: true });
-        console.log(`✅ Screenshot directories ready: ${passDir}, ${errDir}`);
+        console.log(`Screenshot directories ready: ${passDir}, ${errDir}`);
     }
 
     /**
@@ -130,14 +168,14 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
                     if (options.waitForNav) {
                         await page.waitForLoadState('networkidle').catch(() => { });
                     }
-                    console.log(`✅ ${actionName} - Selector: ${selector}`);
+                    console.log(`${actionName} - Selector: ${selector}`);
                     return true;
                 }
             } catch (e) {
                 continue;
             }
         }
-        console.warn(`⚠️ ${actionName} - Element not found`);
+        console.warn(`${actionName} - Element not found`);
         return false;
     }
 
@@ -154,7 +192,7 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
                 if (await tabButton.isVisible({ timeout: 5000 }).catch(() => false)) {
                     await tabButton.scrollIntoViewIfNeeded();
                     await tabButton.click({ timeout: 10000 });
-                    console.log(`✅ Selecting tab: "${tabName}" - Button alias: ${alias}`);
+                    console.log(`Selecting tab: "${tabName}" - Button alias: ${alias}`);
                     success = true;
                     break;
                 }
@@ -174,96 +212,20 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
                 await page.waitForLoadState('networkidle').catch(() => { });
                 const productsVisible = await page.locator(productCardSelector).first().isVisible({ timeout: 10000 }).catch(() => false);
                 if (productsVisible) {
-                    console.log(`✅ Products loaded for tab: "${tabName}"`);
+                    console.log(`Products loaded for tab: "${tabName}"`);
                     return true;
                 }
 
                 // If no products found, still return success (tab might be loading)
-                console.warn(`⚠️ Could not find products after tab selection: "${tabName}"`);
+                console.warn(`Could not find products after tab selection: "${tabName}"`);
                 return false;
             }
             return false;
         } catch (error) {
-            console.error(`❌ Error selecting tab "${tabName}":`, error);
+            console.error(`Error selecting tab "${tabName}":`, error);
             return false;
         }
     }
-
-    /**
-     * Select first product in current tab by increasing quantity
-     */
-    async function selectProduct(page: Page): Promise<boolean> {
-        try {
-            await page.waitForLoadState('networkidle').catch(() => { });
-            await page.locator(productCardSelector).first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => { });
-
-            const cards = page.locator(productCardSelector);
-            const cardCount = await cards.count();
-            for (let index = 0; index < Math.min(cardCount, 10); index++) {
-                const card = cards.nth(index);
-                if (!await card.isVisible({ timeout: 1000 }).catch(() => false)) {
-                    continue;
-                }
-
-                const plusBtn = card.getByRole('button', { name: /^\+$/ }).filter({ hasNot: page.locator('[disabled]') }).last();
-                if (await plusBtn.isVisible({ timeout: 1000 }).catch(() => false) && await plusBtn.isEnabled().catch(() => false)) {
-                    await plusBtn.scrollIntoViewIfNeeded();
-                    await plusBtn.click({ timeout: 10000 });
-                    await page.waitForLoadState('networkidle').catch(() => { });
-                    console.log(`✅ Selected product from card #${index + 1}`);
-                    return true;
-                }
-            }
-
-            // Find first quantity increment button (the "+" button in product card)
-            const incrementSelectors = [
-                'button[aria-label*="+"]',
-                'button:has-text("+")',
-                'button[class*="increment"]',
-                'button:nth-child(3) div:has-text("+")',
-            ];
-
-            for (const selector of incrementSelectors) {
-                try {
-                    const incrementBtn = page.locator(selector).first();
-                    if (await incrementBtn.isVisible({ timeout: 3000 }) && await incrementBtn.isEnabled().catch(() => false)) {
-                        // Click the + button to add product to selection
-                        await incrementBtn.click({ timeout: 5000 });
-                        console.log(`✅ Selected first product - Quantity increased using selector: ${selector}`);
-                        await page.waitForTimeout(500);
-                        return true;
-                    }
-                } catch (e) {
-                    continue;
-                }
-            }
-
-            // If increment button didn't work, try clicking on product card directly
-            const cardSelectors = [
-                '//*[@id="product-card-"]/div/div[2]/div/div/button[2]',
-            ];
-
-            for (const selector of cardSelectors) {
-                try {
-                    const card = page.locator(selector).first();
-                    if (await card.isVisible({ timeout: 3000 })) {
-                        await card.click({ timeout: 5000 });
-                        console.log(`✅ Selected first product using selector: ${selector}`);
-                        await page.waitForLoadState('networkidle').catch(() => { });
-                        return true;
-                    }
-                } catch (e) {
-                    continue;
-                }
-            }
-
-            return false;
-        } catch (error) {
-            console.error('❌ Error selecting product:', error);
-            return false;
-        }
-    }
-
     async function waitForCopyButtonVisible(page: Page, timeout = 30000, warnOnTimeout = true): Promise<boolean> {
         const visible = await page.waitForFunction(() => {
             return Array.from(document.querySelectorAll('button')).some((button) => {
@@ -286,16 +248,15 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
         }, undefined, { timeout }).then(() => true).catch(() => false);
 
         if (visible) {
-            console.log('✅ Copy button is visible');
+            console.log('Copy button is visible');
             return true;
         }
 
         if (warnOnTimeout) {
-            console.warn('⚠️ Copy button did not become visible after checkout');
+            console.warn('Copy button did not become visible after checkout');
         }
         return false;
     }
-
     async function waitForQrCopyCardReady(page: Page, timeout = 90000): Promise<boolean> {
         console.log('Waiting for QR/copy card to finish loading...');
 
@@ -361,9 +322,9 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
 
             const surfaceText = (copySurface.textContent || '').toLowerCase();
             const hasQrPaymentText = surfaceText.includes('qr')
-                || surfaceText.includes('ngân hàng')
+                || surfaceText.includes('ng\u00e2n h\u00e0ng')
                 || surfaceText.includes('ngan hang')
-                || surfaceText.includes('chuyển khoản')
+                || surfaceText.includes('chuy\u1ec3n kho\u1ea3n')
                 || surfaceText.includes('chuyen khoan')
                 || surfaceText.includes('stk')
                 || surfaceText.includes('vietqr');
@@ -373,11 +334,11 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
 
         if (ready) {
             await page.waitForTimeout(1500);
-            console.log('✅ QR/copy card is ready for copy');
+            console.log('QR/copy card is ready for copy');
             return true;
         }
 
-        console.warn('⚠️ QR/copy card did not finish loading before timeout');
+        console.warn('QR/copy card did not finish loading before timeout');
         return false;
     }
 
@@ -385,15 +346,15 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
         const deadline = Date.now() + timeout;
 
         while (Date.now() < deadline) {
-            const copyBtn = await findUsableButtonByText(page, /Sao chép/i);
+            const copyBtn = await findUsableButtonByText(page, new RegExp(escapeRegExp(labels.copy), 'i'));
             if (copyBtn) {
-                console.log('✅ Copy button is visible and active');
+                console.log('Copy button is visible and active');
                 return copyBtn;
             }
             await page.waitForTimeout(500);
         }
 
-        console.warn('⚠️ Copy button did not become active');
+        console.warn('Copy button did not become active');
         return null;
     }
 
@@ -421,15 +382,15 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
 
                 await plusBtn.scrollIntoViewIfNeeded();
                 await plusBtn.click({ timeout: 10000 });
-                console.log(`✅ Selected product from card #${cardIndex + 1}`);
+                console.log(`Selected product from card #${cardIndex + 1}`);
 
-                console.log('📍 Waiting for auto-loaded QR/copy card after product selection...');
+                console.log('Waiting for auto-loaded QR/copy card after product selection...');
                 if (await waitForQrLoadedThenCopyEnabled(page, initialQrTimeout)) {
-                    console.log('✅ QR/copy card loaded after selecting product; Thanh toán was not clicked');
+                    console.log('QR/copy card loaded after selecting product; Thanh toán was not clicked');
                     return true;
                 }
 
-                console.warn('⚠️ QR/copy card was not visible after selecting product. Trying card Thanh toán once as fallback.');
+                console.warn('QR/copy card was not visible after selecting product. Trying card Thanh toán once as fallback.');
                 const deadline = Date.now() + 15000;
                 let checkoutBtn: Locator | null = null;
                 while (Date.now() < deadline && !checkoutBtn) {
@@ -445,14 +406,14 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
 
                 await checkoutBtn.scrollIntoViewIfNeeded();
                 await checkoutBtn.click({ timeout: 10000 });
-                console.log(`✅ Clicked fallback Thanh toán once in selected card #${cardIndex + 1}`);
+                console.log(`Clicked fallback Thanh toán once in selected card #${cardIndex + 1}`);
                 await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => { });
                 return await waitForQrLoadedThenCopyEnabled(page, fallbackQrTimeout);
             }
 
             throw new Error('No selectable product card with an active + button was found');
         } catch (error) {
-            console.error('❌ Error selecting product and preparing QR/copy card:', error);
+            console.error('Error selecting product and preparing QR/copy card:', error);
             return false;
         }
     }
@@ -477,13 +438,13 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
         tabConfig: typeof tabsToTestDefault[0],
         qrTimeout = 90000
     ): Promise<boolean> {
-        console.log('📍 Step 1: Selecting tab...');
+        console.log('Step 1: Selecting tab...');
         const tabSelected = await selectTab(page, tabConfig.tabName, tabConfig.selectors);
         if (!tabSelected) {
             throw new Error(`Failed to select tab: ${tabConfig.tabName}`);
         }
 
-        console.log('📍 Step 2-4: Selecting a product card and waiting for QR/Sao Chép...');
+        console.log('Step 2-4: Selecting a product card and waiting for QR/Sao Chép...');
         const copyReady = await selectProductAndPrepareCopyCard(page, 20000, qrTimeout);
         if (!copyReady) {
             const visibleActionButtons = await page.locator('button').evaluateAll((buttons) => {
@@ -500,19 +461,15 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
                     .filter((text) => /Thanh toán|Đặt Hàng|Sao Chép|Đã sao chép/i.test(text))
                     .filter((text, index, allTexts) => text && allTexts.indexOf(text) === index);
             }).catch(() => []);
-            console.warn(`⚠️ QR/copy card was not found after selecting product and optional fallback. Visible action buttons: ${visibleActionButtons.join(' | ') || 'none'}`);
+            console.warn(`QR/copy card was not found after selecting product and optional fallback. Visible action buttons: ${visibleActionButtons.join(' | ') || 'none'}`);
             return false;
         }
 
         return await waitForCopyButtonVisible(page, 30000);
     }
 
-    /**
-     * Click copy button in payment modal
-     */
     async function clickCopyButton(page: Page): Promise<boolean> {
         try {
-            // Scroll to top of page/modal to find copy button
             await page.evaluate(() => {
                 window.scrollTo(0, 0);
                 const modal = document.querySelector('[class*="modal"], [role="dialog"]');
@@ -529,17 +486,14 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
 
             await activeCopyBtn.scrollIntoViewIfNeeded();
             await activeCopyBtn.click({ timeout: 10000 });
-            console.log('✅ Clicked active Copy button');
+            console.log('Clicked active Copy button');
             return true;
         } catch (error) {
-            console.error('❌ Error clicking copy button:', error);
+            console.error('Error clicking copy button:', error);
             return false;
         }
     }
 
-    /**
-     * Wait for button state change from "Sao chép" to "Đang xử lý", then "Đã sao chép".
-     */
     async function waitForCopyStateChange(page: Page): Promise<boolean> {
         const waitForButtonText = async (patterns: string[], timeout: number): Promise<boolean> => {
             return page.waitForFunction((expectedPatterns) => {
@@ -559,17 +513,17 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
         try {
             console.log('Waiting for copy button state change...');
 
-            const processingDetected = await waitForButtonText(['Đang xử lý', 'Dang xu ly', 'Processing'], 10000);
+            const processingDetected = await waitForButtonText([labels.processing, 'Dang xu ly', 'Processing'], 10000);
             if (processingDetected) {
                 console.log('Button changed to processing state.');
             } else {
-                const copiedAlreadyVisible = await waitForButtonText(['Đã sao chép', 'Da sao chep', 'Copied'], 1000);
+                const copiedAlreadyVisible = await waitForButtonText([labels.copied, 'Da sao chep', 'Copied'], 1000);
                 if (!copiedAlreadyVisible) {
                     console.warn('Did not detect processing state before copy confirmation wait.');
                 }
             }
 
-            const copyConfirmed = await waitForButtonText(['Đã sao chép', 'Da sao chep', 'Copied'], 30000);
+            const copyConfirmed = await waitForButtonText([labels.copied, 'Da sao chep', 'Copied'], 30000);
             if (!copyConfirmed) {
                 console.error('Copy button never reached "Da sao chep" state.');
                 return false;
@@ -587,93 +541,7 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
     type ClipboardSavedContent = {
         textPath: string | null;
         imagePath: string | null;
-        text: string | null;
-        types: string[];
     };
-
-    async function saveVisibleCopyContentElementImage(page: Page, filePath: string): Promise<{ width: number; height: number } | null> {
-        const marker = 'data-copied-payment-target';
-
-        const marked = await page.evaluate((attributeName) => {
-            document.querySelectorAll(`[${attributeName}]`).forEach((element) => element.removeAttribute(attributeName));
-
-            const isVisible = (element: Element) => {
-                const rect = element.getBoundingClientRect();
-                const style = window.getComputedStyle(element);
-                return rect.width > 0
-                    && rect.height > 0
-                    && style.visibility !== 'hidden'
-                    && style.display !== 'none'
-                    && Number(style.opacity || '1') > 0.3;
-            };
-
-            const paymentKeywords = [
-                /qr/i,
-                /ngân hàng|ngan hang/i,
-                /stk/i,
-                /số tiền|so tien/i,
-                /nội dung|noi dung/i,
-                /vietqr/i,
-                /hoàn tiền|hoan tien/i,
-            ];
-
-            const candidates = Array.from(document.body.querySelectorAll<HTMLElement>('*'))
-                .filter((element) => {
-                    if (!isVisible(element)) {
-                        return false;
-                    }
-
-                    const rect = element.getBoundingClientRect();
-                    if (rect.width < 250 || rect.height < 250) {
-                        return false;
-                    }
-
-                    const text = element.textContent || '';
-                    const keywordCount = paymentKeywords.filter((pattern) => pattern.test(text)).length;
-                    const hasQrAsset = Array.from(element.querySelectorAll('img, canvas, svg')).some(isVisible);
-
-                    return keywordCount >= 2 && hasQrAsset;
-                })
-                .map((element) => ({
-                    element,
-                    area: element.getBoundingClientRect().width * element.getBoundingClientRect().height,
-                }))
-                .sort((left, right) => left.area - right.area);
-
-            const target = candidates[0]?.element;
-            if (!target) {
-                return false;
-            }
-
-            target.setAttribute(attributeName, 'true');
-            target.scrollIntoView({ block: 'center', inline: 'center' });
-            return true;
-        }, marker);
-
-        if (!marked) {
-            return null;
-        }
-
-        const target = page.locator(`[${marker}="true"]`).first();
-        if (!await target.isVisible({ timeout: 3000 }).catch(() => false)) {
-            return null;
-        }
-
-        const box = await target.boundingBox();
-        if (!box) {
-            return null;
-        }
-
-        await target.screenshot({ path: filePath });
-        await page.evaluate((attributeName) => {
-            document.querySelectorAll(`[${attributeName}]`).forEach((element) => element.removeAttribute(attributeName));
-        }, marker).catch(() => { });
-
-        return {
-            width: Math.round(box.width),
-            height: Math.round(box.height),
-        };
-    }
 
     async function readAndSaveClipboardContentOnly(
         page: Page,
@@ -698,60 +566,6 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
                 html: null,
                 image: null,
                 types: [],
-            };
-
-            const isVisible = (element: Element) => {
-                const rect = element.getBoundingClientRect();
-                const style = window.getComputedStyle(element);
-                return rect.width > 0
-                    && rect.height > 0
-                    && style.visibility !== 'hidden'
-                    && style.display !== 'none'
-                    && Number(style.opacity || '1') > 0.3;
-            };
-
-            const findCopyContentBounds = () => {
-                const copyButton = Array.from(document.querySelectorAll('button')).find((button) => {
-                    const text = (button.textContent || '').toLowerCase();
-                    return isVisible(button)
-                        && ((text.includes('sao') && text.includes('ch')) || text.includes('copied'));
-                });
-
-                if (!copyButton) {
-                    return null;
-                }
-
-                const viewportWidth = window.innerWidth;
-                const viewportHeight = window.innerHeight;
-                const paymentTextPattern = /qr|stk|vietqr|ngân hàng|ngan hang|chuyển khoản|chuyen khoan|sao chép|sao chep|đã sao chép|da sao chep|copied/i;
-                let current: HTMLElement | null = copyButton.parentElement;
-
-                while (current && current !== document.body) {
-                    const rect = current.getBoundingClientRect();
-                    const text = current.textContent || '';
-                    const hasPaymentContent = paymentTextPattern.test(text)
-                        || Array.from(current.querySelectorAll('img, canvas, svg')).some(isVisible);
-                    const coversNearlyWholeViewport = rect.width >= viewportWidth * 0.92 && rect.height >= viewportHeight * 0.92;
-
-                    if (hasPaymentContent && !coversNearlyWholeViewport && rect.width >= 120 && rect.height >= 80) {
-                        const padding = 12;
-                        const left = Math.max(0, rect.left - padding);
-                        const top = Math.max(0, rect.top - padding);
-                        const right = Math.min(viewportWidth, rect.right + padding);
-                        const bottom = Math.min(viewportHeight, rect.bottom + padding);
-
-                        return {
-                            left,
-                            top,
-                            width: Math.max(1, right - left),
-                            height: Math.max(1, bottom - top),
-                        };
-                    }
-
-                    current = current.parentElement;
-                }
-
-                return null;
             };
 
             try {
@@ -810,14 +624,14 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
             console.log('===== COPIED CLIPBOARD TEXT START =====');
             console.log(copiedText);
             console.log('===== COPIED CLIPBOARD TEXT END =====');
-            console.log(`✅ Saved copied clipboard text only: ${textPath}`);
+            console.log(`Saved copied clipboard text only: ${textPath}`);
         }
 
         if (clipboardContent.image) {
             const extension = clipboardContent.image.type.split('/')[1] || 'png';
             imagePath = path.join(outputDir, `copied-${websiteName}-${tabDisplayName}-clipboard.${extension}`);
             await fs.writeFile(imagePath, Buffer.from(clipboardContent.image.data));
-            console.log(`✅ Saved full copied clipboard image: ${imagePath} (${clipboardContent.image.type}, ${clipboardContent.image.width}x${clipboardContent.image.height}, ${clipboardContent.image.data.length} bytes)`);
+            console.log(`Saved full copied clipboard image: ${imagePath} (${clipboardContent.image.type}, ${clipboardContent.image.width}x${clipboardContent.image.height}, ${clipboardContent.image.data.length} bytes)`);
         }
 
         expect(
@@ -828,8 +642,6 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
         return {
             textPath,
             imagePath,
-            text: copiedText || null,
-            types: Array.from(new Set(clipboardContent.types)),
         };
     }
 
@@ -859,15 +671,15 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
                 });
 
                 const message = isSuccess
-                    ? `✅ Screenshot saved (success): ${filePath}`
-                    : `❌ Screenshot saved (error): ${filePath} - Error: ${error}`;
+                    ? `Screenshot saved (success): ${filePath}`
+                    : `Screenshot saved (error): ${filePath} - Error: ${error}`;
 
                 console.log(message);
                 return filePath;
             }
             return null;
         } catch (error) {
-            console.error('❌ Error taking screenshot:', error);
+            console.error('Error taking screenshot:', error);
             return null;
         }
     }
@@ -878,37 +690,40 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
     async function testCopyInTab(
         page: Page,
         websiteName: string,
-        tabConfig: typeof tabsToTestDefault[0]
+        tabConfig: typeof tabsToTestDefault[0],
+        homeUrl: string
     ): Promise<{ success: boolean; screenshotPath: string | null; clipboardAttachment: string | null }> {
         let screenshotPath: string | null = null;
         let clipboardAttachment: string | null = null;
         let success = false;
 
         try {
-            console.log(`\n📋 Testing tab: ${tabConfig.tabName} on ${websiteName}...`);
-            await page.goto('/', { waitUntil: 'domcontentloaded' });
+            console.log(`\nTesting tab: ${tabConfig.tabName} on ${websiteName}...`);
+            console.log(`Step 1: Navigating to homepage: ${homeUrl}`);
+            await page.goto(homeUrl, { waitUntil: 'domcontentloaded' });
+            await warnIfHomepageQueryWasDropped(page, homeUrl);
 
             const copyCardReady = await prepareCopyCardFromTab(page, tabConfig, 90000);
             if (!copyCardReady) {
-                throw new Error('QR/copy card did not finish loading after Thanh Toán');
+                throw new Error(`QR/copy card did not finish loading after ${labels.checkout}`);
             }
 
             // Step 5: Click copy button
-            console.log('📍 Step 5: Clicking copy button...');
+            console.log('Step 5: Clicking copy button...');
             const copyClicked = await clickCopyButton(page);
             if (!copyClicked) {
                 throw new Error('Failed to click copy button');
             }
 
-            // Step 6: Wait for copy button state change from "Sao chép" → "Đang xử lý" → "Sao chép"
-            console.log('📍 Step 6: Waiting for copy button state change...');
+            // Step 6: Wait for copy button state change from "Sao Chép" to "Đang xử lý", then "Đã sao chép".
+            console.log('Step 6: Waiting for copy button state change...');
             const stateChanged = await waitForCopyStateChange(page);
             if (!stateChanged) {
                 throw new Error('Failed to detect copy confirmation state change');
             }
 
             // Step 7: Read and save only the copied clipboard content
-            console.log('📍 Step 7: Reading clipboard and saving copied content only...');
+            console.log('Step 7: Reading clipboard and saving copied content only...');
             const clipboardContent = await readAndSaveClipboardContentOnly(
                 page,
                 websiteName,
@@ -920,11 +735,11 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
             }
 
             success = true;
-            console.log(`✅ Successfully tested copy in tab: ${tabConfig.tabName}`);
+            console.log(`Successfully tested copy in tab: ${tabConfig.tabName}`);
 
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);
-            console.error(`❌ Error in tab ${tabConfig.tabName}:`, errorMsg);
+            console.error(`Error in tab ${tabConfig.tabName}:`, errorMsg);
 
             // Report error
             await appendErrorReport(
@@ -958,13 +773,14 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
 
         const websiteName = testInfo.project.name;
         const tabsForWebsite = getTabsForWebsite(websiteName);
+        const homeUrl = getProjectHomeUrl(testInfo);
         const results: { tab: string; success: boolean; screenshotPath: string | null; clipboardAttachment: string | null }[] = [];
 
         console.log(`\nTarget website: ${websiteName}`);
         console.log(`Tabs to test: ${tabsForWebsite.map((tab) => tab.tabName).join(' | ')}`);
 
         for (const tabConfig of tabsForWebsite) {
-            const result = await testCopyInTab(page, websiteName, tabConfig);
+            const result = await testCopyInTab(page, websiteName, tabConfig, homeUrl);
             results.push({
                 tab: tabConfig.tabName,
                 success: result.success,
