@@ -1,65 +1,60 @@
-/// <reference types="node" />
-import { test, expect, Page, Locator } from '@playwright/test';
+﻿/// <reference types="node" />
+import { expect, Locator, Page } from '@playwright/test';
 import path from 'path';
 import fs from 'fs/promises';
-import { appendErrorReport } from './utils/error-report';
+import { clickElement } from '../helpers/element-actions';
+import { warnIfHomepageQueryWasDropped } from '../helpers/navigation';
+import { productCardSelector } from '../../constants/selectors';
+import { appendErrorReport } from '../../utils/reportUtils';
+import { textRegexSelector, viLabels, viRegex } from '../../constants/vietnamese';
 
-test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
-    test.setTimeout(360000);
+export class CopyPage {
+    constructor(private readonly page: Page) { }
 
+    async ensureScreenshotDirectories() {
+        return ensureScreenshotDirectories();
+    }
+
+    getTabsForWebsite(websiteName: string): TabConfig[] {
+        return getTabsForWebsite(websiteName);
+    }
+
+    async testCopyInTab(websiteName: string, tabConfig: TabConfig, homeUrl: string) {
+        return testCopyInTab(this.page, websiteName, tabConfig, homeUrl);
+    }
+}
     const labels = {
-        singleBag: 'Túi đơn',
-        doubleBag: 'Túi đôi',
-        versatileBag: 'Túi đa dạng',
-        mergedOrder: 'Đơn ghép',
-        box: 'Chọn thùng',
-        checkout: 'Thanh toán',
-        order: 'Đặt Hàng',
-        copy: 'Sao Chép',
-        copied: 'Đã sao chép',
-        processing: 'Đang xử lý',
+        singleBag: viLabels.singleBag,
+        doubleBag: viLabels.doubleBag,
+        versatileBag: viLabels.versatileBag,
+        mergedOrder: viLabels.mergedOrder,
+        box: viLabels.box,
+        checkout: viLabels.checkout,
+        order: viLabels.order,
+        copy: viLabels.copy,
+        copied: viLabels.copied,
+        processing: viLabels.processing,
     } as const;
 
-    function getProjectHomeUrl(testInfo: { project: { use: { baseURL?: string } } }) {
-        const baseURL = testInfo.project.use.baseURL?.trim();
-        return baseURL || '/';
-    }
-
-    function getUrlSearchParams(url: string) {
-        try {
-            return new URL(url).searchParams;
-        } catch {
-            return new URL(url, 'http://localhost').searchParams;
-        }
-    }
-
-    async function warnIfHomepageQueryWasDropped(page: Page, homeUrl: string) {
-        const expectedParams = getUrlSearchParams(homeUrl);
-        if ([...expectedParams].length === 0) {
-            return;
-        }
-
-        const currentParams = getUrlSearchParams(page.url());
-        const droppedParams = [...expectedParams].filter(([key, value]) => currentParams.get(key) !== value);
-        if (droppedParams.length > 0) {
-            const expectedQuery = expectedParams.toString();
-            console.warn(`Homepage query was not preserved after load. Expected query: ${expectedQuery}. Current URL: ${page.url()}`);
-        }
-    }
+    type TabConfig = {
+        tabName: string;
+        displayName: string;
+        selectors: string[];
+    };
 
     // Configuration for tabs to test
-    const tabsToTestDefault = [
-        { tabName: labels.singleBag, displayName: 'Tui-Don', selectors: [`text=${labels.singleBag}`, `button:has-text("${labels.singleBag}")`, `[data-testid*="tab"][text="${labels.singleBag}"]`, `text=${labels.mergedOrder}`, `button:has-text("${labels.mergedOrder}")`, `[data-testid*="tab"][text="${labels.mergedOrder}"]`] },
-        { tabName: labels.doubleBag, displayName: 'Tui-Doi', selectors: [`text=${labels.doubleBag}`, `button:has-text("${labels.doubleBag}")`, `[data-testid*="tab"][text="${labels.doubleBag}"]`] },
-        { tabName: labels.versatileBag, displayName: 'Tui-Da-Dang', selectors: [`text=${labels.versatileBag}`, `button:has-text("${labels.versatileBag}")`, `[data-testid*="tab"][text="${labels.versatileBag}"]`] },
+    const tabsToTestDefault: TabConfig[] = [
+        { tabName: labels.singleBag, displayName: 'Tui-Don', selectors: [textRegexSelector(viRegex.singleBag), `button:has-text("${labels.singleBag}")`, textRegexSelector(viRegex.mergedOrder), `button:has-text("${labels.mergedOrder}")`] },
+        { tabName: labels.doubleBag, displayName: 'Tui-Doi', selectors: [textRegexSelector(viRegex.doubleBag), `button:has-text("${labels.doubleBag}")`] },
+        { tabName: labels.versatileBag, displayName: 'Tui-Da-Dang', selectors: [textRegexSelector(viRegex.versatileBag), `button:has-text("${labels.versatileBag}")`] },
     ];
 
-    const tabsToTestSi = [
-        { tabName: labels.box, displayName: 'Chon-Thung', selectors: [`text=${labels.box}`, `button:has-text("${labels.box}")`, `[data-testid*="tab"][text="${labels.box}"]`] },
+    const tabsToTestSi: TabConfig[] = [
+        { tabName: labels.box, displayName: 'Chon-Thung', selectors: [textRegexSelector(viRegex.box), `button:has-text("${labels.box}")`] },
     ];
 
     // Helper function to get tabs for specific website
-    const getTabsForWebsite = (websiteName: string): typeof tabsToTestDefault => {
+    const getTabsForWebsite = (websiteName: string): TabConfig[] => {
         return websiteName === 'si' ? tabsToTestSi : tabsToTestDefault;
     };
 
@@ -67,24 +62,14 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
 
     const getTabAliases = (tabName: string): string[] => {
         const aliases: Record<string, string[]> = {
-            [labels.singleBag]: [labels.singleBag, 'Túi Đơn', labels.mergedOrder, 'Túi Đơn Ghép', 'Túi Đơn ghép'],
-            [labels.doubleBag]: [labels.doubleBag, 'Túi Đôi'],
-            [labels.versatileBag]: [labels.versatileBag, 'Túi Đa Dạng'],
-            [labels.box]: [labels.box, 'Chọn Thùng'],
+            [labels.singleBag]: [labels.singleBag, 'Túi Đơn', labels.mergedOrder, 'Túi Đơn Ghép', 'Túi Đơn ghép', 'Tui Don'],
+            [labels.doubleBag]: [labels.doubleBag, 'Túi Đôi', 'Tui Doi'],
+            [labels.versatileBag]: [labels.versatileBag, 'Túi Đa Dạng', 'Tui Da Dang'],
+            [labels.box]: [labels.box, 'Chọn Thùng', 'Chon Thung'],
         };
 
         return aliases[tabName] ?? [tabName];
     };
-
-    const productCardSelector = [
-        '[data-testid^="product-"]',
-        '[data-testid^="combo-card-"]',
-        '[data-testid^="bundle-card-"]',
-        '[id^="product-"]',
-        '[id^="combo-card-"]',
-        '[id^="bundle-card-"]',
-        '[id^="product-card-"]',
-    ].join(', ');
 
     const isUsableButton = async (button: Locator): Promise<boolean> => {
         return button.evaluate((element) => {
@@ -123,7 +108,7 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
     };
 
     const findUsableCheckoutButtonInCard = async (card: Locator): Promise<Locator | null> => {
-        const buttons = card.locator('button').filter({ hasText: new RegExp(`^\\s*${escapeRegExp(labels.checkout)}\\s*$`, 'i') });
+        const buttons = card.locator('button').filter({ hasText: viRegex.checkout });
         const buttonCount = await buttons.count();
 
         for (let buttonIndex = 0; buttonIndex < buttonCount; buttonIndex++) {
@@ -149,34 +134,6 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
         await fs.mkdir(passDir, { recursive: true });
         await fs.mkdir(errDir, { recursive: true });
         console.log(`Screenshot directories ready: ${passDir}, ${errDir}`);
-    }
-
-    /**
-     * Click element by trying multiple selectors
-     */
-    async function clickElement(
-        page: Page,
-        selectors: string[],
-        actionName: string,
-        options = { visibilityTimeout: 3000, clickTimeout: 5000, waitForNav: false }
-    ): Promise<boolean> {
-        for (const selector of selectors) {
-            try {
-                const element = page.locator(selector).first();
-                if (await element.isVisible({ timeout: options.visibilityTimeout }) && await element.isEnabled().catch(() => true)) {
-                    await element.click({ timeout: options.clickTimeout });
-                    if (options.waitForNav) {
-                        await page.waitForLoadState('networkidle').catch(() => { });
-                    }
-                    console.log(`${actionName} - Selector: ${selector}`);
-                    return true;
-                }
-            } catch (e) {
-                continue;
-            }
-        }
-        console.warn(`${actionName} - Element not found`);
-        return false;
     }
 
     /**
@@ -322,9 +279,9 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
 
             const surfaceText = (copySurface.textContent || '').toLowerCase();
             const hasQrPaymentText = surfaceText.includes('qr')
-                || surfaceText.includes('ng\u00e2n h\u00e0ng')
+                || surfaceText.includes('ngân hàng')
                 || surfaceText.includes('ngan hang')
-                || surfaceText.includes('chuy\u1ec3n kho\u1ea3n')
+                || surfaceText.includes('chuyển khoản')
                 || surfaceText.includes('chuyen khoan')
                 || surfaceText.includes('stk')
                 || surfaceText.includes('vietqr');
@@ -386,11 +343,11 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
 
                 console.log('Waiting for auto-loaded QR/copy card after product selection...');
                 if (await waitForQrLoadedThenCopyEnabled(page, initialQrTimeout)) {
-                    console.log('QR/copy card loaded after selecting product; Thanh toán was not clicked');
+                console.log(`QR/copy card loaded after selecting product; ${labels.checkout} was not clicked`);
                     return true;
                 }
 
-                console.warn('QR/copy card was not visible after selecting product. Trying card Thanh toán once as fallback.');
+                console.warn(`QR/copy card was not visible after selecting product. Trying card ${labels.checkout} once as fallback.`);
                 const deadline = Date.now() + 15000;
                 let checkoutBtn: Locator | null = null;
                 while (Date.now() < deadline && !checkoutBtn) {
@@ -401,12 +358,12 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
                 }
 
                 if (!checkoutBtn) {
-                    throw new Error(`No active Thanh toán button was found in selected card #${cardIndex + 1}`);
+                    throw new Error(`No active ${labels.checkout} button was found in selected card #${cardIndex + 1}`);
                 }
 
                 await checkoutBtn.scrollIntoViewIfNeeded();
                 await checkoutBtn.click({ timeout: 10000 });
-                console.log(`Clicked fallback Thanh toán once in selected card #${cardIndex + 1}`);
+                console.log(`Clicked fallback ${labels.checkout} once in selected card #${cardIndex + 1}`);
                 await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => { });
                 return await waitForQrLoadedThenCopyEnabled(page, fallbackQrTimeout);
             }
@@ -444,7 +401,7 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
             throw new Error(`Failed to select tab: ${tabConfig.tabName}`);
         }
 
-        console.log('Step 2-4: Selecting a product card and waiting for QR/Sao Chép...');
+        console.log(`Step 2-4: Selecting a product card and waiting for QR/${labels.copy}...`);
         const copyReady = await selectProductAndPrepareCopyCard(page, 20000, qrTimeout);
         if (!copyReady) {
             const visibleActionButtons = await page.locator('button').evaluateAll((buttons) => {
@@ -458,7 +415,7 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
                             && style.display !== 'none';
                     })
                     .map((button) => (button.textContent || '').replace(/\s+/g, ' ').trim())
-                    .filter((text) => /Thanh toán|Đặt Hàng|Sao Chép|Đã sao chép/i.test(text))
+                    .filter((text) => /Thanh\s+toán|Thanh\s+toan|Đặt\s+Hàng|Đặt\s+hàng|Dat\s+Hang|Sao\s+Chép|Sao\s+chép|Sao\s+Chep|Đã\s+sao\s+chép|Da\s+sao\s+chep/i.test(text))
                     .filter((text, index, allTexts) => text && allTexts.indexOf(text) === index);
             }).catch(() => []);
             console.warn(`QR/copy card was not found after selecting product and optional fallback. Visible action buttons: ${visibleActionButtons.join(' | ') || 'none'}`);
@@ -765,40 +722,5 @@ test.describe('Copy Functionality (Sao Chép - NDS) - All Websites', () => {
     }
 
     // ============================================================================
-    // MAIN TESTS
-    // ============================================================================
 
-    test('Copy Functionality - Sequential Tabs', async ({ page }, testInfo) => {
-        await ensureScreenshotDirectories();
 
-        const websiteName = testInfo.project.name;
-        const tabsForWebsite = getTabsForWebsite(websiteName);
-        const homeUrl = getProjectHomeUrl(testInfo);
-        const results: { tab: string; success: boolean; screenshotPath: string | null; clipboardAttachment: string | null }[] = [];
-
-        console.log(`\nTarget website: ${websiteName}`);
-        console.log(`Tabs to test: ${tabsForWebsite.map((tab) => tab.tabName).join(' | ')}`);
-
-        for (const tabConfig of tabsForWebsite) {
-            const result = await testCopyInTab(page, websiteName, tabConfig, homeUrl);
-            results.push({
-                tab: tabConfig.tabName,
-                success: result.success,
-                screenshotPath: result.screenshotPath,
-                clipboardAttachment: result.clipboardAttachment,
-            });
-        }
-
-        console.log(`\nCopy test summary for ${websiteName}:`);
-        for (const result of results) {
-            console.log(`${result.success ? 'PASS' : 'FAIL'} - ${result.tab} - ${result.clipboardAttachment || result.screenshotPath || 'Not saved'}`);
-        }
-
-        const failedTabs = results.filter((result) => !result.success).map((result) => result.tab);
-        const missingClipboardTabs = results.filter((result) => result.success && !result.clipboardAttachment).map((result) => result.tab);
-
-        await expect(failedTabs, `All configured tabs should pass. Failed tabs: ${failedTabs.join(', ') || 'none'}`).toEqual([]);
-        await expect(missingClipboardTabs, `Clipboard content should be saved for every passed tab. Missing: ${missingClipboardTabs.join(', ') || 'none'}`).toEqual([]);
-    });
-
-});

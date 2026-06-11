@@ -82,6 +82,8 @@ logs/
 .env.*
 !.env.example
 !.env.test.example
+test-data/env/.env
+!test-data/env/.env.example
 
 # Local override files (chứa path tuyệt đối, config local)
 *.local

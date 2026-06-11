@@ -4,8 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "cleanup:screenshots": "node cleanup-screenshots.js",
-    "test": "playwright test"
+    "cleanup:screenshots": "node scripts/cleanup-screenshots.js",
+    "test": "playwright test",
+    "test:checkout": "playwright test tests/checkout/checkout-flow.spec.ts",
+    "test:copy": "playwright test tests/checkout/copy-functionality.spec.ts",
+    "test:list": "playwright test --list",
+    "typecheck": "tsc --noEmit"
   },
   "repository": {
     "type": "git",

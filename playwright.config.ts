@@ -1,31 +1,14 @@
 /// <reference types="node" />
-import { defineConfig, devices } from '@playwright/test';
-
-/**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
- */
-import dotenv from 'dotenv';
-import path from 'path';
-dotenv.config({ path: path.resolve(__dirname, '.env'), quiet: true });
-
-const requiredEnv = (name: string) => {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-};
-
-const SERIAL_WORKERS = 1;
-const ACTION_TIMEOUT_MS = 15000;
-const NAVIGATION_TIMEOUT_MS = 30000;
+import { defineConfig } from '@playwright/test';
+import { createPlaywrightProjects } from './config/projects.config';
+import { ACTION_TIMEOUT_MS, NAVIGATION_TIMEOUT_MS, SERIAL_WORKERS } from './config/test.config';
 
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
   testDir: './tests',
+  testMatch: ['**/*.spec.ts'],
   /* Run tests in files in parallel */
   fullyParallel: false,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -58,69 +41,8 @@ export default defineConfig({
     navigationTimeout: NAVIGATION_TIMEOUT_MS,
   },
 
-  /* Configure projects for 7 different websites */
-  projects: [
-    // Project 1: tuoixanhnhanhngon.timdaythay.com
-    {
-      name: 'tuoixanhnhanhngon',
-      use: {
-        ...devices['Desktop Chrome'],
-        baseURL: requiredEnv('BASE_URL_TUOIXANHNHANHNGON'),
-      },
-    },
-
-    // Project 2: tegianoitro.timdaythay.com
-    {
-      name: 'tegianoitro',
-      use: {
-        ...devices['Desktop Chrome'],
-        baseURL: requiredEnv('BASE_URL_TEGIANOITRO'),
-      },
-    },
-
-    // Project 3: danongdichthuc.timdaythay.com
-    {
-      name: 'danongdichthuc',
-      use: {
-        ...devices['Desktop Chrome'],
-        baseURL: requiredEnv('BASE_URL_DANONGDICHTHUC'),
-      },
-    },
-
-    // Project 4: hangthietyeu.timdaythay.com
-    {
-      name: 'hangthietyeu',
-      use: {
-        ...devices['Desktop Chrome'],
-        baseURL: requiredEnv('BASE_URL_HANGTHIETYEU'),
-      },
-    },
-
-    // Project 5: nhanquocdan.timdaythay.com
-    {
-      name: 'nhanquocdan',
-      use: {
-        ...devices['Desktop Chrome'],
-        baseURL: requiredEnv('BASE_URL_NHANQUOCDAN'),
-      },
-    },
-
-    // Project 6: si.timdaythay.com
-    {
-      name: 'si',
-      use: {
-        ...devices['Desktop Chrome'],
-        baseURL: requiredEnv('BASE_URL_SI'),
-      },
-    },
-    {
-      name: 'thegioiphaidep',
-      use: {
-        ...devices['Desktop Chrome'],
-        baseURL: requiredEnv('BASE_URL_THEGIOIPHAIDEP'),
-      },
-    },
-  ],
+  /* Configure projects for all websites from config/projects.config.ts. */
+  projects: createPlaywrightProjects(),
 
   /* Run your local dev server before starting the tests */
   // webServer: {
