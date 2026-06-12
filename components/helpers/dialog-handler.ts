@@ -2,7 +2,21 @@ import { Dialog, Page } from '@playwright/test';
 import path from 'path';
 import fs from 'fs/promises';
 
-export type DialogTracker = { dialog: Dialog | null };
+export type CapturedDialog = {
+    message: string;
+    type: string;
+    screenshotPath: string;
+};
+
+export type DialogTracker = {
+    dialog: Dialog | null;
+    lastDialog?: {
+        message: string;
+        type: string;
+        context?: string;
+        timestamp: number;
+    };
+};
 
 const errScreenshotDir = path.join('test-results', 'err-screenshots');
 
@@ -19,6 +33,11 @@ export function setupDialogTracker(page: Page): DialogTracker {
     const tracker: DialogTracker = { dialog: null };
     page.on('dialog', (dialog) => {
         tracker.dialog = dialog;
+        tracker.lastDialog = {
+            message: dialog.message(),
+            type: dialog.type(),
+            timestamp: Date.now(),
+        };
     });
     return tracker;
 }
@@ -140,16 +159,22 @@ export async function captureAndDismissDialog(
     page: Page,
     tracker: DialogTracker,
     context: string
-): Promise<{ message: string; type: string; screenshotPath: string }> {
+): Promise<CapturedDialog> {
     const timestamp = Date.now();
     const safeContext = context.replace(/[^a-z0-9-_]/gi, '-');
     const screenshotPath = path.join(errScreenshotDir, `dialog-${safeContext}-${timestamp}.png`);
     const dialog = tracker.dialog;
-    const message = dialog?.message?.() ?? 'Unknown dialog message';
-    const type = dialog?.type?.() ?? 'dialog';
+    const message = dialog?.message?.() ?? tracker.lastDialog?.message ?? 'Unknown dialog message';
+    const type = dialog?.type?.() ?? tracker.lastDialog?.type ?? 'dialog';
+    tracker.lastDialog = {
+        message,
+        type,
+        context,
+        timestamp,
+    };
 
     console.warn(`[${context}] Browser dialog detected (${type}): "${message}"`);
-    const nativeScreenshotCaptured = await captureScreenshotWithDialog(page, screenshotPath);
+    const nativeScreenshotCaptured = page.isClosed() ? false : await captureScreenshotWithDialog(page, screenshotPath);
 
     if (tracker.dialog) {
         await tracker.dialog.dismiss().catch(() => { });
@@ -165,13 +190,53 @@ export async function captureAndDismissDialog(
     return { message, type, screenshotPath };
 }
 
+export function buildDialogError(context: string, captured: CapturedDialog): Error {
+    return new Error(`[${context}] Browser dialog (${captured.type}): ${captured.message}. Screenshot: ${captured.screenshotPath}`);
+}
+
+export async function capturePendingDialogError(
+    page: Page,
+    tracker: DialogTracker | undefined,
+    context: string
+): Promise<{ error: Error; screenshotPath: string } | null> {
+    if (!tracker?.dialog && !tracker?.lastDialog) {
+        return null;
+    }
+
+    if (!page.isClosed() && tracker.dialog) {
+        const captured = await captureAndDismissDialog(page, tracker, context);
+        return {
+            error: buildDialogError(context, captured),
+            screenshotPath: captured.screenshotPath,
+        };
+    }
+
+    const timestamp = Date.now();
+    const safeContext = context.replace(/[^a-z0-9-_]/gi, '-');
+    const screenshotPath = path.join(errScreenshotDir, `dialog-${safeContext}-${timestamp}.png`);
+    const captured = {
+        message: tracker.lastDialog?.message ?? 'Unknown dialog message',
+        type: tracker.lastDialog?.type ?? 'dialog',
+        screenshotPath,
+    };
+
+    if (!page.isClosed()) {
+        await captureDialogMessageOverlay(page, screenshotPath, captured.type, captured.message);
+    }
+
+    return {
+        error: buildDialogError(context, captured),
+        screenshotPath,
+    };
+}
+
 export async function checkAndHandleDialog(page: Page, tracker: DialogTracker, context: string): Promise<void> {
     if (!tracker.dialog) {
         return;
     }
 
-    const { message, type, screenshotPath } = await captureAndDismissDialog(page, tracker, context);
-    throw new Error(`[${context}] Browser dialog (${type}): ${message}. Screenshot: ${screenshotPath}`);
+    const captured = await captureAndDismissDialog(page, tracker, context);
+    throw buildDialogError(context, captured);
 }
 
 export async function waitAndHandleDialog(

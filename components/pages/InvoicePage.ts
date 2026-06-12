@@ -5,7 +5,7 @@ import fs from 'fs/promises';
 import { tid, testIds } from '../../constants/testIds';
 import { textRegexSelector, viRegex } from '../../constants/vietnamese';
 
-const invoiceErrorRegex = /Lỗi\s+lấy\s+đơn\s+hàng|Quota exceeded|Read requests|sheets\.googleapis\.com|project_number|Không\s+thể\s+tải\s+dữ\s+liệu|Internal server error/i;
+const invoiceErrorRegex = /Lỗi\s+(lấy|lưu)\s+đơn\s+hàng|Quota exceeded|Read requests|sheets\.googleapis\.com|project_number|Không\s+thể\s+tải\s+dữ\s+liệu|Internal server error/i;
 const invoiceContentRegex = /Hóa\s+đơn\s+chi\s+tiết|Hoá\s+đơn\s+chi\s+tiết|Thông\s+tin\s+đơn\s+hàng|Xác\s+nhận\s+đơn\s+hàng|Mã\s+đơn\s+hàng|Chi\s+tiết\s+đơn\s+hàng|Hoa\s+don\s+chi\s+tiet|Thong\s+tin\s+don\s+hang|Xac\s+nhan\s+don\s+hang|Ma\s+don\s+hang|Chi\s+tiet\s+don\s+hang/i;
 const invoiceDetailTitleRegex = viRegex.invoiceDetail;
 const invoiceMeaningfulContentRegex = /Mã\s+đơn\s+hàng|Chi\s+tiết\s+đơn\s+hàng|Thông\s+tin\s+đơn\s+hàng|Khách\s+hàng|Số\s+điện\s+thoại|Sản\s+phẩm|Tổng\s+tiền|Thành\s+tiền|Order|Customer|Phone|Product|Total/i;
@@ -111,7 +111,7 @@ export class InvoicePage {
         return true;
     }
 
-    async function findInvoiceCapturePage(page: Page, initialUrl: string) {
+    async function findInvoiceCapturePage(page: Page, initialUrl: string): Promise<{ page: Page; invoiceFound: boolean }> {
         const context = page.context();
 
         const candidatePages = context.pages()
@@ -121,7 +121,7 @@ export class InvoicePage {
         for (const candidate of candidatePages) {
             await candidate.waitForLoadState('domcontentloaded', { timeout: 2000 }).catch(() => { });
             if (await waitForInvoicePopup(candidate, candidate === page ? initialUrl : undefined)) {
-                return candidate;
+                return { page: candidate, invoiceFound: true };
             }
         }
 
@@ -130,40 +130,94 @@ export class InvoicePage {
             await newPage.waitForLoadState('domcontentloaded', { timeout: 3000 }).catch(() => { });
             await newPage.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => { });
             if (await waitForInvoicePopup(newPage)) {
-                return newPage;
+                return { page: newPage, invoiceFound: true };
             }
-            return newPage;
+            return { page: newPage, invoiceFound: false };
         }
 
-        return page;
+        return { page, invoiceFound: false };
     }
 
     async function findInvoiceDetailPopup(page: Page): Promise<Locator | null> {
-        const candidates = page
-            .locator('div, section, article, [role="dialog"], [class*="modal"], [class*="popup"]')
-            .filter({ has: page.getByText(invoiceDetailTitleRegex) });
+        const marker = await page.evaluate(({ titlePattern, contentPattern }) => {
+            const titleRegex = new RegExp(titlePattern, 'i');
+            const contentRegex = new RegExp(contentPattern, 'i');
+            const markerValue = `pw-invoice-detail-popup-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            const viewportArea = window.innerWidth * window.innerHeight;
 
-        const count = Math.min(await candidates.count().catch(() => 0), 80);
-        let best: { locator: Locator; area: number } | null = null;
+            document.querySelectorAll('[data-pw-invoice-detail-popup]').forEach((element) => {
+                element.removeAttribute('data-pw-invoice-detail-popup');
+            });
 
-        for (let index = 0; index < count; index++) {
-            const candidate = candidates.nth(index);
-            if (!await candidate.isVisible({ timeout: 250 }).catch(() => false)) {
-                continue;
+            const isVisible = (element: Element) => {
+                const rect = element.getBoundingClientRect();
+                const style = window.getComputedStyle(element);
+                return rect.width > 0
+                    && rect.height > 0
+                    && style.visibility !== 'hidden'
+                    && style.display !== 'none';
+            };
+
+            const candidates = Array.from(document.querySelectorAll<HTMLElement>('body *'))
+                .map((element) => {
+                    const rect = element.getBoundingClientRect();
+                    const area = rect.width * rect.height;
+                    const text = element.innerText || element.textContent || '';
+                    const className = String(element.className || '');
+                    const role = element.getAttribute('role') || '';
+                    const hasIframe = Boolean(element.querySelector('iframe'));
+                    const hasTitle = titleRegex.test(text);
+                    const hasContent = contentRegex.test(text);
+                    const shellHint = /dialog/i.test(role) || /modal|popup|dialog|invoice|order/i.test(className);
+
+                    return { element, rect, area, hasIframe, hasTitle, hasContent, shellHint };
+                })
+                .filter(({ element, rect, area, hasTitle }) => {
+                    return hasTitle
+                        && isVisible(element)
+                        && rect.width >= 280
+                        && rect.height >= 160
+                        && area < viewportArea * 0.9;
+                });
+
+            let best = candidates
+                .filter((candidate) => candidate.hasIframe)
+                .sort((left, right) => {
+                    const leftScore = (left.shellHint ? -100000 : 0) + (left.hasContent ? -50000 : 0) + left.area;
+                    const rightScore = (right.shellHint ? -100000 : 0) + (right.hasContent ? -50000 : 0) + right.area;
+                    return leftScore - rightScore;
+                })[0];
+
+            if (!best) {
+                best = candidates
+                    .sort((left, right) => {
+                        const leftScore = (left.shellHint ? -100000 : 0) + (left.hasContent ? -50000 : 0) + left.area;
+                        const rightScore = (right.shellHint ? -100000 : 0) + (right.hasContent ? -50000 : 0) + right.area;
+                        return leftScore - rightScore;
+                    })[0];
             }
 
-            const box = await candidate.boundingBox().catch(() => null);
-            if (!box || box.width < 240 || box.height < 160) {
-                continue;
+            if (!best) {
+                return null;
             }
 
-            const area = box.width * box.height;
-            if (!best || area < best.area) {
-                best = { locator: candidate, area };
-            }
+            best.element.setAttribute('data-pw-invoice-detail-popup', markerValue);
+            return markerValue;
+        }, {
+            titlePattern: invoiceDetailTitleRegex.source,
+            contentPattern: invoiceMeaningfulContentRegex.source,
+        }).catch(() => null);
+
+        if (!marker) {
+            return null;
         }
 
-        return best?.locator ?? null;
+        const popup = page.locator(`[data-pw-invoice-detail-popup="${marker}"]`).first();
+        if (!await popup.isVisible({ timeout: 250 }).catch(() => false)) {
+            return null;
+        }
+
+        return popup;
     }
 
     async function screenshotVisibleElement(locator: Locator, screenshotPath: string): Promise<void> {
@@ -192,6 +246,34 @@ export class InvoicePage {
         }).catch(() => '');
     }
 
+    async function findInvoiceFrameInPopup(popup: Locator) {
+        const iframes = popup.locator('iframe');
+        const count = await iframes.count().catch(() => 0);
+
+        for (let index = 0; index < count; index++) {
+            const iframe = iframes.nth(index);
+            const handle = await iframe.elementHandle().catch(() => null);
+            const frame = await handle?.contentFrame().catch(() => null);
+            if (!frame) {
+                continue;
+            }
+
+            const frameText = await frame.locator('body').innerText({ timeout: 1000 }).catch(() => '');
+            const frameUrl = frame.url();
+            if (
+                /order\.html|code=/.test(frameUrl)
+                || invoiceDetailTitleRegex.test(frameText)
+                || invoiceContentRegex.test(frameText)
+                || invoiceErrorRegex.test(frameText)
+                || invoiceMeaningfulContentRegex.test(frameText)
+            ) {
+                return { iframe, frame, text: frameText };
+            }
+        }
+
+        return null;
+    }
+
     async function captureInvalidInvoiceTarget(
         locator: Locator,
         testInfo: any,
@@ -208,8 +290,14 @@ export class InvoicePage {
         return errorPath;
     }
 
+    async function getInvoiceTargetText(locator: Locator): Promise<string> {
+        const popupText = await getInvoicePopupText(locator);
+        const invoiceFrame = await findInvoiceFrameInPopup(locator);
+        return [popupText, invoiceFrame?.text || ''].join('\n');
+    }
+
     async function validateInvoicePassTarget(locator: Locator, testInfo: any): Promise<boolean> {
-        const targetText = await getInvoicePopupText(locator);
+        const targetText = await getInvoiceTargetText(locator);
         if (invoiceErrorRegex.test(targetText)) {
             await captureInvalidInvoiceTarget(locator, testInfo, 'error');
             return false;
@@ -281,79 +369,6 @@ export class InvoicePage {
     async function screenshotInvoicePopupFullContent(popup: Locator, screenshotPath: string): Promise<void> {
         await popup.scrollIntoViewIfNeeded({ timeout: 1000 }).catch(() => { });
         await scrollInvoicePopupToFooter(popup);
-
-        const cloneMarker = await popup.evaluate((element) => {
-            const root = element as HTMLElement;
-            const marker = `pw-invoice-clone-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-            const wrapper = document.createElement('div');
-            const clone = root.cloneNode(true) as HTMLElement;
-            const rootWidth = Math.ceil(Math.max(root.scrollWidth, root.offsetWidth, root.clientWidth, root.getBoundingClientRect().width));
-
-            wrapper.setAttribute('data-pw-invoice-clone-root', marker);
-            wrapper.style.cssText = [
-                'position:absolute',
-                'top:0',
-                'left:0',
-                'z-index:2147483647',
-                'background:#ffffff',
-                'padding:16px',
-                `width:${rootWidth + 32}px`,
-                'box-sizing:border-box',
-            ].join(';');
-
-            clone.setAttribute('data-pw-invoice-clone-target', marker);
-            clone.style.position = 'static';
-            clone.style.inset = 'auto';
-            clone.style.transform = 'none';
-            clone.style.width = `${rootWidth}px`;
-            clone.style.height = 'auto';
-            clone.style.maxHeight = 'none';
-            clone.style.overflow = 'visible';
-            clone.style.overflowY = 'visible';
-
-            for (const node of Array.from(clone.querySelectorAll<HTMLElement>('*'))) {
-                const style = window.getComputedStyle(node);
-                if (/(auto|scroll|hidden)/.test(`${style.overflow}${style.overflowY}`)) {
-                    node.style.height = 'auto';
-                    node.style.maxHeight = 'none';
-                    node.style.overflow = 'visible';
-                    node.style.overflowY = 'visible';
-                }
-                if (style.position === 'fixed') {
-                    node.style.position = 'static';
-                    node.style.inset = 'auto';
-                    node.style.transform = 'none';
-                }
-            }
-
-            wrapper.appendChild(clone);
-            document.body.appendChild(wrapper);
-
-            const cloneHeight = Math.ceil(Math.max(clone.scrollHeight, clone.offsetHeight, clone.clientHeight));
-            clone.style.height = `${cloneHeight}px`;
-            document.documentElement.style.minHeight = `${cloneHeight + 32}px`;
-            document.body.style.minHeight = `${cloneHeight + 32}px`;
-            window.scrollTo(0, 0);
-
-            return marker;
-        }).catch(() => null);
-
-        if (cloneMarker) {
-            try {
-                await popup.locator(`[data-pw-invoice-clone-target="${cloneMarker}"]`).screenshot({
-                    path: screenshotPath,
-                    animations: "disabled",
-                    timeout: 10000,
-                });
-                return;
-            } finally {
-                await popup.evaluate((element, marker) => {
-                    document.querySelector(`[data-pw-invoice-clone-root="${marker}"]`)?.remove();
-                    document.documentElement.style.minHeight = '';
-                    document.body.style.minHeight = '';
-                }, cloneMarker).catch(() => { });
-            }
-        }
 
         const styleState = await popup.evaluate((element) => {
             const root = element as HTMLElement;
@@ -429,6 +444,167 @@ export class InvoicePage {
         }
     }
 
+    async function screenshotInvoicePopupWithExpandedFrame(popup: Locator, screenshotPath: string): Promise<void> {
+        await popup.scrollIntoViewIfNeeded({ timeout: 1000 }).catch(() => { });
+        const invoiceFrame = await findInvoiceFrameInPopup(popup);
+        if (!invoiceFrame) {
+            await screenshotInvoicePopupFullContent(popup, screenshotPath);
+            return;
+        }
+
+        const frameSize = await invoiceFrame.frame.evaluate(() => {
+            const elements = Array.from(document.querySelectorAll<HTMLElement>('body, body *'));
+            const maxElementBottom = elements.reduce((max, element) => {
+                const rect = element.getBoundingClientRect();
+                const bottom = rect.bottom + window.scrollY;
+                return Math.max(max, bottom, element.scrollHeight, element.offsetHeight, element.clientHeight);
+            }, 0);
+
+            return {
+                width: Math.ceil(Math.max(
+                    document.documentElement.scrollWidth,
+                    document.body?.scrollWidth || 0,
+                    document.documentElement.clientWidth,
+                    document.body?.clientWidth || 0,
+                )),
+                height: Math.ceil(Math.max(
+                    maxElementBottom,
+                    document.documentElement.scrollHeight,
+                    document.body?.scrollHeight || 0,
+                    document.documentElement.offsetHeight,
+                    document.body?.offsetHeight || 0,
+                )),
+            };
+        }).catch(() => null);
+
+        if (!frameSize) {
+            await screenshotInvoicePopupFullContent(popup, screenshotPath);
+            return;
+        }
+
+        const styleState = await popup.evaluate((element, size) => {
+            const root = element as HTMLElement;
+            const marker = `pw-invoice-popup-frame-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            const rootRect = root.getBoundingClientRect();
+            const nodes: HTMLElement[] = [root];
+            let parent = root.parentElement;
+
+            while (parent && parent !== document.body && parent !== document.documentElement && nodes.length < 8) {
+                const style = window.getComputedStyle(parent);
+                if (/(auto|scroll|hidden)/.test(`${style.overflow}${style.overflowY}`) || style.position === 'fixed') {
+                    nodes.push(parent);
+                }
+                parent = parent.parentElement;
+            }
+
+            nodes.push(...Array.from(root.querySelectorAll<HTMLElement>('*')).filter((node) => {
+                const style = window.getComputedStyle(node);
+                return node.tagName.toLowerCase() === 'iframe'
+                    || /(auto|scroll|hidden)/.test(`${style.overflow}${style.overflowY}`);
+            }));
+
+            return nodes.map((node, index) => {
+                const id = `${marker}-${index}`;
+                const previous = {
+                    position: node.style.position,
+                    top: node.style.top,
+                    right: node.style.right,
+                    bottom: node.style.bottom,
+                    left: node.style.left,
+                    transform: node.style.transform,
+                    height: node.style.height,
+                    maxHeight: node.style.maxHeight,
+                    minHeight: node.style.minHeight,
+                    width: node.style.width,
+                    maxWidth: node.style.maxWidth,
+                    overflow: node.style.overflow,
+                    overflowY: node.style.overflowY,
+                    marker: node.getAttribute('data-pw-invoice-popup-frame-id'),
+                };
+                const iframe = node instanceof HTMLIFrameElement ? node : null;
+                const containedIframe = node === root ? root.querySelector('iframe') : null;
+                const containedIframeHeight = containedIframe
+                    ? Math.max(containedIframe.offsetHeight, containedIframe.clientHeight)
+                    : 0;
+                const expandedIframeDelta = containedIframeHeight > 0
+                    ? Math.max(size.height - containedIframeHeight, 0)
+                    : 0;
+                const targetHeight = iframe
+                    ? Math.max(size.height, iframe.offsetHeight, iframe.clientHeight)
+                    : Math.max(node.scrollHeight + expandedIframeDelta, node.offsetHeight + expandedIframeDelta, node.clientHeight + expandedIframeDelta);
+
+                node.setAttribute('data-pw-invoice-popup-frame-id', id);
+                node.style.height = `${targetHeight}px`;
+                node.style.maxHeight = 'none';
+                node.style.minHeight = `${targetHeight}px`;
+                node.style.maxWidth = 'none';
+                node.style.overflow = 'visible';
+                node.style.overflowY = 'visible';
+
+                if (node === root) {
+                    node.style.position = 'absolute';
+                    node.style.top = '40px';
+                    node.style.left = `${Math.max(rootRect.left, 0)}px`;
+                    node.style.right = 'auto';
+                    node.style.bottom = 'auto';
+                    node.style.transform = 'none';
+                    node.style.width = `${Math.ceil(rootRect.width)}px`;
+                }
+
+                if (iframe) {
+                    node.style.width = '100%';
+                }
+
+                return { id, previous };
+            });
+        }, frameSize);
+
+        try {
+            await popup.evaluate((element) => {
+                const root = element as HTMLElement;
+                const bottom = Math.ceil(root.getBoundingClientRect().bottom + window.scrollY + 40);
+                document.documentElement.style.minHeight = `${bottom}px`;
+                document.body.style.minHeight = `${bottom}px`;
+                window.scrollTo(0, 0);
+            }).catch(() => { });
+            await invoiceFrame.frame.evaluate(() => window.scrollTo(0, 0)).catch(() => { });
+            await popup.screenshot({
+                path: screenshotPath,
+                animations: "disabled",
+                timeout: 10000,
+            });
+        } finally {
+            await popup.evaluate((element, state) => {
+                for (const item of state as Array<{ id: string; previous: Record<string, string | null> }>) {
+                    const node = document.querySelector(`[data-pw-invoice-popup-frame-id="${item.id}"]`) as HTMLElement | null;
+                    if (!node) {
+                        continue;
+                    }
+                    node.style.position = item.previous.position || '';
+                    node.style.top = item.previous.top || '';
+                    node.style.right = item.previous.right || '';
+                    node.style.bottom = item.previous.bottom || '';
+                    node.style.left = item.previous.left || '';
+                    node.style.transform = item.previous.transform || '';
+                    node.style.height = item.previous.height || '';
+                    node.style.maxHeight = item.previous.maxHeight || '';
+                    node.style.minHeight = item.previous.minHeight || '';
+                    node.style.width = item.previous.width || '';
+                    node.style.maxWidth = item.previous.maxWidth || '';
+                    node.style.overflow = item.previous.overflow || '';
+                    node.style.overflowY = item.previous.overflowY || '';
+                    if (item.previous.marker) {
+                        node.setAttribute('data-pw-invoice-popup-frame-id', item.previous.marker);
+                    } else {
+                        node.removeAttribute('data-pw-invoice-popup-frame-id');
+                    }
+                }
+                document.documentElement.style.minHeight = '';
+                document.body.style.minHeight = '';
+            }, styleState).catch(() => { });
+        }
+    }
+
     async function captureInvoiceDetailPopup(page: Page, testInfo: any, passScreenshotPath: string): Promise<string | null> {
         const popup = await findInvoiceDetailPopup(page);
         if (!popup) {
@@ -436,9 +612,11 @@ export class InvoicePage {
         }
 
         await page.waitForTimeout(500);
-        const popupText = await getInvoicePopupText(popup);
-        const hasInvoiceError = invoiceErrorRegex.test(popupText);
-        const hasMeaningfulContent = invoiceMeaningfulContentRegex.test(popupText);
+        const popupText = await getInvoiceTargetText(popup);
+        const invoiceFrame = await findInvoiceFrameInPopup(popup);
+        const combinedText = [popupText, invoiceFrame?.text || ''].join('\n');
+        const hasInvoiceError = invoiceErrorRegex.test(combinedText);
+        const hasMeaningfulContent = invoiceMeaningfulContentRegex.test(combinedText);
         const targetDir = hasInvoiceError || !hasMeaningfulContent
             ? path.join('test-results', 'err-screenshots')
             : path.dirname(passScreenshotPath);
@@ -451,11 +629,11 @@ export class InvoicePage {
             if (hasInvoiceError || !hasMeaningfulContent) {
                 await screenshotVisibleElement(popup, targetPath);
             } else {
-                const hasFooter = invoiceFooterRegex.test(popupText) || await scrollInvoicePopupToFooter(popup);
+                const hasFooter = invoiceFooterRegex.test(combinedText) || await scrollInvoicePopupToFooter(popup);
                 if (!hasFooter) {
                     console.warn('Invoice detail footer was not detected before capture; continuing with full popup content screenshot');
                 }
-                await screenshotInvoicePopupFullContent(popup, targetPath);
+                await screenshotInvoicePopupWithExpandedFrame(popup, targetPath);
             }
         } catch (error) {
             console.warn(`Could not capture invoice detail popup element: ${(error as Error).message}`);
@@ -574,7 +752,7 @@ export class InvoicePage {
     async function captureInvoiceErrorState(page: Page, testInfo: any) {
         const invoicePopup = await findInvoiceDetailPopup(page);
         if (invoicePopup) {
-            const popupText = await getInvoicePopupText(invoicePopup);
+            const popupText = await getInvoiceTargetText(invoicePopup);
             if (invoiceErrorRegex.test(popupText)) {
                 const errorPath = path.join('test-results', 'err-screenshots', `${testInfo.project.name}-invoice-popup-error.png`);
                 await fs.mkdir(path.dirname(errorPath), { recursive: true }).catch(() => { });
@@ -814,17 +992,17 @@ export class InvoicePage {
             return '';
         }
 
+        const invoiceDetailPopupResult = await captureInvoiceDetailPopup(page, testInfo, screenshotPath);
+        if (invoiceDetailPopupResult !== null) {
+            return invoiceDetailPopupResult;
+        }
+
         const invoiceDetailFrameResult = await captureInvoiceDetailFrame(page, testInfo, screenshotPath).catch((error) => {
             console.warn(`Could not capture invoice detail iframe: ${(error as Error).message}`);
             return null;
         });
         if (invoiceDetailFrameResult !== null) {
             return invoiceDetailFrameResult;
-        }
-
-        const invoiceDetailPopupResult = await captureInvoiceDetailPopup(page, testInfo, screenshotPath);
-        if (invoiceDetailPopupResult !== null) {
-            return invoiceDetailPopupResult;
         }
 
         const largestContainerResult = await captureLargestInvoiceContainer(page, testInfo, screenshotPath).catch(() => null);
@@ -997,14 +1175,16 @@ export class InvoicePage {
         }
 
         try {
-            const invoicePage = await findInvoiceCapturePage(page, initialUrl);
+            const invoiceCapture = await findInvoiceCapturePage(page, initialUrl);
+            const invoicePage = invoiceCapture.page;
 
             if (invoicePage !== page) {
                 console.log(`INFO Invoice appears to be on a separate page: ${invoicePage.url()}`);
             }
 
-            // Wait for invoice popup to appear
-            const invoiceFound = await waitForInvoicePopup(invoicePage, invoicePage === page ? initialUrl : undefined, 1000);
+            // Reuse the detection result from findInvoiceCapturePage to avoid duplicate waits/logs.
+            const invoiceFound = invoiceCapture.invoiceFound
+                || await waitForInvoicePopup(invoicePage, invoicePage === page ? initialUrl : undefined, 1000);
 
             if (invoiceFound) {
                 await openInvoiceDetailPopupIfAvailable(invoicePage);

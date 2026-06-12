@@ -2,7 +2,7 @@
 import { expect, Page } from '@playwright/test';
 import path from 'path';
 import fs from 'fs/promises';
-import { clickElement, fillInput } from '../helpers/element-actions';
+import { clickElement, fillInput, fillVisibleInputs, firstVisibleLocator } from '../helpers/element-actions';
 import * as dialogHandler from '../helpers/dialog-handler';
 import { tid, testIds } from '../../constants/testIds';
 import { textRegexSelector, viLabels, viRegex } from '../../constants/vietnamese';
@@ -40,7 +40,7 @@ export class CheckoutPage {
     }
 
     async fillCustomerInfo(customer: CheckoutCustomer) {
-        return fillCustomerInfo(this.page, customer);
+        return fillCustomerInfo(this.page, customer, this.dialogTracker);
     }
 
     async completeOrder() {
@@ -262,18 +262,22 @@ export class CheckoutPage {
         }
     }
 
-    async function fillCustomerInfo(page: Page, customer: { name: string; phone: string }) {
-        // Try multiple strategies to locate the order info popup or input fields.
-        const popupSelectors = [
-            tid(testIds.invoicePopup),
-            textRegexSelector(viRegex.customerInfo),
-        ];
+    async function fillCustomerInfo(
+        page: Page,
+        customer: { name: string; phone: string },
+        dialogTracker?: dialogHandler.DialogTracker
+    ) {
+        if (dialogTracker) {
+            await dialogHandler.checkAndHandleDialog(page, dialogTracker, 'fill-info-precheck');
+        }
 
         const nameSelectors = [
             tid(testIds.inputName),
             tid(testIds.inputRecipientName),
             `input[placeholder*="Nhập tên người đặt hàng"]`,
             `input[placeholder*="Nhập tên người nhận quà"]`,
+            `input[placeholder*="Nháº­p tÃªn ngÆ°á»i Ä‘áº·t hÃ ng"]`,
+            `input[placeholder*="Nháº­p tÃªn ngÆ°á»i nháº­n quÃ "]`,
         ];
 
         const phoneSelectors = [
@@ -281,46 +285,21 @@ export class CheckoutPage {
             tid(testIds.inputRecipientPhone),
             `input[placeholder*="Nhập số điện thoại"]`,
             `input[placeholder*="Nhập SĐT người nhận quà"]`,
+            `input[placeholder*="Nháº­p sá»‘ Ä‘iá»‡n thoáº¡i"]`,
+            `input[placeholder*="Nháº­p SÄT ngÆ°á»i nháº­n quÃ "]`,
         ];
 
-        // Retry a few times to allow UI to render the popup or inputs
-        const maxAttempts = 3;
-        let nameVisible = false;
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-            // Check popup selectors first
-            for (const sel of popupSelectors) {
-                try {
-                    const p = page.locator(sel).first();
-                    if (await p.isVisible({ timeout: 1000 }).catch(() => false)) {
-                        nameVisible = true;
-                        break;
-                    }
-                } catch {
-                    // ignore
-                }
-            }
+        const nameLocators = [
+            page.getByRole('textbox', { name: viRegex.customerNamePlaceholder }),
+            ...nameSelectors.map((selector) => page.locator(selector)),
+        ];
+        const phoneLocators = [
+            page.getByRole('textbox', { name: viRegex.phonePlaceholder }),
+            ...phoneSelectors.map((selector) => page.locator(selector)),
+        ];
 
-            // If popup not found, check if any name input is visible directly
-            if (!nameVisible) {
-                for (const sel of nameSelectors) {
-                    try {
-                        const n = page.locator(sel).first();
-                        if (await n.isVisible({ timeout: 1000 }).catch(() => false)) {
-                            nameVisible = true;
-                            break;
-                        }
-                    } catch {
-                        // ignore
-                    }
-                }
-            }
-
-            if (nameVisible) {
-                break;
-            }
-        }
-
-        if (!nameVisible) {
+        const visibleName = await firstVisibleLocator(nameLocators, 12000, page, dialogTracker, 'fill-info-wait-input');
+        if (!visibleName) {
             // Timeout waiting for customer info popup - throw error
             const errorPath = path.join('test-results', 'err-screenshots', 'customer-info-popup-not-found.png');
             await fs.mkdir(path.dirname(errorPath), { recursive: true }).catch(() => { });
@@ -330,15 +309,17 @@ export class CheckoutPage {
             throw new Error(`Could not find customer info popup or input fields. See screenshot: ${errorPath}`);
         }
 
-        // Now fill the name and phone fields
+        const filledNames = await fillVisibleInputs(nameLocators, customer.name, 'Name', page, dialogTracker);
+        if (filledNames === 0) {
+            const nameFilled = await fillInput(page, nameSelectors, customer.name, 'Name', dialogTracker);
+            if (!nameFilled) throw new Error(`Could not fill name for ${customer.name}`);
+        }
 
-        // Fill name
-        const nameFilled = await fillInput(page, nameSelectors, customer.name, 'Name');
-        if (!nameFilled) throw new Error(`Could not fill name for ${customer.name}`);
-
-        // Fill phone
-        const phoneFilled = await fillInput(page, phoneSelectors, customer.phone, 'Phone');
-        if (!phoneFilled) throw new Error(`Could not fill phone for ${customer.phone}`);
+        const filledPhones = await fillVisibleInputs(phoneLocators, customer.phone, 'Phone', page, dialogTracker);
+        if (filledPhones === 0) {
+            const phoneFilled = await fillInput(page, phoneSelectors, customer.phone, 'Phone', dialogTracker);
+            if (!phoneFilled) throw new Error(`Could not fill phone for ${customer.phone}`);
+        }
     }
 
     async function completeOrder(page: Page, dialogTracker?: dialogHandler.DialogTracker) {

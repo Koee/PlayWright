@@ -1,6 +1,6 @@
 ﻿/// <reference types="node" />
 import { expect, Page, TestInfo } from '@playwright/test';
-import { getProjectHomeUrl } from '../components/helpers/navigation';
+import { getProjectHomeUrl, warnIfHomepageQueryWasDropped } from '../components/helpers/navigation';
 import { CopyPage } from '../components/pages/CopyPage';
 
 export async function runCopyFunctionality(page: Page, testInfo: TestInfo) {
@@ -15,8 +15,14 @@ export async function runCopyFunctionality(page: Page, testInfo: TestInfo) {
         console.log(`\nTarget website: ${websiteName}`);
         console.log(`Tabs to test: ${tabsForWebsite.map((tab) => tab.tabName).join(' | ')}`);
 
+        console.log(`Step 1: Navigating to homepage once: ${homeUrl}`);
+        await page.goto(homeUrl, { waitUntil: 'domcontentloaded' });
+        await warnIfHomepageQueryWasDropped(page, homeUrl);
+
         for (const tabConfig of tabsForWebsite) {
-            const result = await copyPage.testCopyInTab(websiteName, tabConfig, homeUrl);
+            const result = await copyPage.testCopyInTab(websiteName, tabConfig, homeUrl, {
+                navigateBeforeTest: false,
+            });
             results.push({
                 tab: tabConfig.tabName,
                 success: result.success,
