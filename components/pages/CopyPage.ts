@@ -19,8 +19,8 @@ export class CopyPage {
         return getTabsForWebsite(websiteName);
     }
 
-    async testCopyInTab(websiteName: string, tabConfig: TabConfig, homeUrl: string) {
-        return testCopyInTab(this.page, websiteName, tabConfig, homeUrl);
+    async testCopyInTab(websiteName: string, tabConfig: TabConfig, homeUrl: string, options?: CopyTabTestOptions) {
+        return testCopyInTab(this.page, websiteName, tabConfig, homeUrl, options);
     }
 }
     const labels = {
@@ -40,6 +40,10 @@ export class CopyPage {
         tabName: string;
         displayName: string;
         selectors: string[];
+    };
+
+    type CopyTabTestOptions = {
+        navigateBeforeTest?: boolean;
     };
 
     // Configuration for tabs to test
@@ -425,6 +429,22 @@ export class CopyPage {
         return await waitForCopyButtonVisible(page, 30000);
     }
 
+    async function closeCopySurfaceIfOpen(page: Page): Promise<void> {
+        await page.keyboard.press('Escape').catch(() => { });
+        await page.waitForTimeout(300);
+
+        const closeButton = page
+            .locator('[role="dialog"], [class*="modal"], [class*="fixed"], [data-testid*="copy"], [data-testid*="qr"]')
+            .locator('button, [role="button"]')
+            .filter({ hasText: /^(?:x|close|dong|huy)$/i })
+            .first();
+
+        if (await closeButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+            await closeButton.click({ timeout: 5000 }).catch(() => { });
+            await page.waitForTimeout(500);
+        }
+    }
+
     async function clickCopyButton(page: Page): Promise<boolean> {
         try {
             await page.evaluate(() => {
@@ -648,17 +668,24 @@ export class CopyPage {
         page: Page,
         websiteName: string,
         tabConfig: typeof tabsToTestDefault[0],
-        homeUrl: string
+        homeUrl: string,
+        options: CopyTabTestOptions = {}
     ): Promise<{ success: boolean; screenshotPath: string | null; clipboardAttachment: string | null }> {
         let screenshotPath: string | null = null;
         let clipboardAttachment: string | null = null;
         let success = false;
+        const navigateBeforeTest = options.navigateBeforeTest ?? true;
 
         try {
             console.log(`\nTesting tab: ${tabConfig.tabName} on ${websiteName}...`);
-            console.log(`Step 1: Navigating to homepage: ${homeUrl}`);
-            await page.goto(homeUrl, { waitUntil: 'domcontentloaded' });
-            await warnIfHomepageQueryWasDropped(page, homeUrl);
+            if (navigateBeforeTest) {
+                console.log(`Step 1: Navigating to homepage: ${homeUrl}`);
+                await page.goto(homeUrl, { waitUntil: 'domcontentloaded' });
+                await warnIfHomepageQueryWasDropped(page, homeUrl);
+            } else {
+                console.log('Step 1: Reusing current homepage session for next tab...');
+                await closeCopySurfaceIfOpen(page);
+            }
 
             const copyCardReady = await prepareCopyCardFromTab(page, tabConfig, 90000);
             if (!copyCardReady) {

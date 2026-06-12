@@ -1,4 +1,4 @@
-import { Page } from '@playwright/test';
+import { Locator, Page } from '@playwright/test';
 import * as dialogHandler from './dialog-handler';
 
 export type ClickElementOptions = {
@@ -45,10 +45,15 @@ export async function fillInput(
     page: Page,
     selectors: string[],
     value: string,
-    fieldName: string
+    fieldName: string,
+    dialogTracker?: dialogHandler.DialogTracker
 ): Promise<boolean> {
     for (const selector of selectors) {
         try {
+            if (dialogTracker) {
+                await dialogHandler.checkAndHandleDialog(page, dialogTracker, `fill-${fieldName.toLowerCase()}-input`);
+            }
+
             const input = page.locator(selector).first();
             if (await input.isVisible({ timeout: 5000 })) {
                 await input.fill(value, { timeout: 5000 });
@@ -60,4 +65,97 @@ export async function fillInput(
         }
     }
     throw new Error(`Could not find ${fieldName} input field`);
+}
+
+export async function firstVisibleLocator(
+    locators: Locator[],
+    timeoutMs: number,
+    page?: Page,
+    dialogTracker?: dialogHandler.DialogTracker,
+    dialogContext = 'wait-input'
+): Promise<Locator | null> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        if (page && dialogTracker) {
+            await dialogHandler.waitAndHandleDialog(page, dialogTracker, dialogContext, 250);
+        }
+
+        for (const locator of locators) {
+            const count = await locator.count().catch(() => 0);
+            for (let index = 0; index < count; index++) {
+                if (page && dialogTracker) {
+                    await dialogHandler.checkAndHandleDialog(page, dialogTracker, dialogContext);
+                }
+
+                const candidate = locator.nth(index);
+                if (await candidate.isVisible({ timeout: 250 }).catch(() => false)) {
+                    return candidate;
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+export async function fillVisibleInputs(
+    locators: Locator[],
+    value: string,
+    fieldName: string,
+    page?: Page,
+    dialogTracker?: dialogHandler.DialogTracker
+): Promise<number> {
+    let filled = 0;
+    const seen = new Set<string>();
+
+    for (const locator of locators) {
+        if (page && dialogTracker) {
+            await dialogHandler.checkAndHandleDialog(page, dialogTracker, `fill-${fieldName.toLowerCase()}-input`);
+        }
+
+        const count = await locator.count().catch(() => 0);
+        for (let index = 0; index < count; index++) {
+            if (page && dialogTracker) {
+                await dialogHandler.checkAndHandleDialog(page, dialogTracker, `fill-${fieldName.toLowerCase()}-input`);
+            }
+
+            const input = locator.nth(index);
+            const handle = await input.elementHandle().catch(() => null);
+            if (!handle) {
+                continue;
+            }
+
+            const key = await handle.evaluate((element) => {
+                const input = element as HTMLInputElement | HTMLTextAreaElement;
+                const rect = input.getBoundingClientRect();
+                return [
+                    input.tagName,
+                    input.placeholder,
+                    input.name,
+                    input.id,
+                    Math.round(rect.left),
+                    Math.round(rect.top),
+                ].join('|');
+            }).catch(() => '');
+            if (key && seen.has(key)) {
+                continue;
+            }
+            if (key) {
+                seen.add(key);
+            }
+
+            if (!await input.isVisible({ timeout: 500 }).catch(() => false)) {
+                continue;
+            }
+
+            await input.fill(value, { timeout: 5000 });
+            filled += 1;
+        }
+    }
+
+    if (filled > 0) {
+        console.log(`Filled ${filled} ${fieldName} input(s)`);
+    }
+
+    return filled;
 }

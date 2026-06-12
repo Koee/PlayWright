@@ -18,6 +18,7 @@ function buildTestCustomer() {
 export async function completeCheckoutFlow(page: Page, testInfo: TestInfo) {
     const testCustomer = buildTestCustomer();
     const websiteName = testInfo.project.name;
+    let dialogTracker: dialogHandler.DialogTracker | undefined;
     console.log(`\n${'='.repeat(80)}\nStarting checkout flow: ${websiteName}\n${'='.repeat(80)}`);
 
     try {
@@ -35,7 +36,7 @@ export async function completeCheckoutFlow(page: Page, testInfo: TestInfo) {
         // The handler is synchronous - it stores the dialog reference
         // without dismissing it, so we can capture a CDP screenshot.
         // -------------------------------------------------------
-        const dialogTracker = dialogHandler.setupDialogTracker(page);
+        dialogTracker = dialogHandler.setupDialogTracker(page);
         const checkoutPage = new CheckoutPage(page, dialogTracker);
         const invoicePage = new InvoicePage(page);
 
@@ -114,16 +115,34 @@ export async function completeCheckoutFlow(page: Page, testInfo: TestInfo) {
         console.log(`${'='.repeat(80)}\nOK Checkout completed successfully for: ${websiteName}\n${'='.repeat(80)}\n`);
 
     } catch (error) {
-        console.error(`\nERROR Error during checkout for ${websiteName}:`, error);
+        let errorForReport = error as Error;
+        let dialogScreenshotPath: string | undefined;
+
+        if (dialogTracker?.dialog || dialogTracker?.lastDialog) {
+            try {
+                const pendingDialog = await dialogHandler.capturePendingDialogError(page, dialogTracker, 'unhandled-dialog');
+                if (pendingDialog) {
+                    errorForReport = pendingDialog.error;
+                    dialogScreenshotPath = pendingDialog.screenshotPath;
+                }
+            } catch (dialogError) {
+                console.warn(`WARN Could not capture pending browser dialog: ${(dialogError as Error).message}`);
+            }
+        }
+
+        console.error(`\nERROR Error during checkout for ${websiteName}:`, errorForReport);
 
         // Use absolute path for screenshot inside test-results/err-screenshots folder
         const errorScreenshot = path.resolve(process.cwd(), 'test-results', 'err-screenshots', `${websiteName}_error.png`);
         let screenshotSaved = false;
         let screenshotPathForReport: string | undefined;
-        const errorMessage = (error as Error).message || '';
+        const errorMessage = errorForReport.message || '';
         const existingScreenshot = errorMessage.match(/Screenshot:\s*([^\r\n]+)/)?.[1]?.trim();
 
-        if (existingScreenshot) {
+        if (dialogScreenshotPath) {
+            screenshotSaved = await fs.access(path.resolve(process.cwd(), dialogScreenshotPath)).then(() => true).catch(() => false);
+            screenshotPathForReport = dialogScreenshotPath;
+        } else if (existingScreenshot) {
             const existingScreenshotPath = path.resolve(process.cwd(), existingScreenshot);
             screenshotSaved = await fs.access(existingScreenshotPath).then(() => true).catch(() => false);
             screenshotPathForReport = existingScreenshot;
@@ -166,14 +185,14 @@ export async function completeCheckoutFlow(page: Page, testInfo: TestInfo) {
         // Append a Vietnamese error report entry
         console.log(`REPORT Attempting to write error report for ${websiteName}...`);
         try {
-            await appendErrorReport(websiteName, error, screenshotSaved ? screenshotPathForReport : undefined);
+            await appendErrorReport(websiteName, errorForReport, screenshotSaved ? screenshotPathForReport : undefined);
             console.log(`OK Error report written successfully for ${websiteName}`);
         } catch (reportError) {
             console.error(`ERROR Failed to write error report for ${websiteName}: ${(reportError as Error).message}`);
             console.error(`   Stack: ${(reportError as Error).stack}`);
         }
 
-        throw error;
+        throw errorForReport;
     }
 
 }
