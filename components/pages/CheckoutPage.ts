@@ -371,8 +371,6 @@ export class CheckoutPage {
             tid(testIds.inputRecipientName),
             `input[placeholder*="Nhập tên người đặt hàng"]`,
             `input[placeholder*="Nhập tên người nhận quà"]`,
-            `input[placeholder*="Nháº­p tÃªn ngÆ°á»i Ä‘áº·t hÃ ng"]`,
-            `input[placeholder*="Nháº­p tÃªn ngÆ°á»i nháº­n quÃ "]`,
         ];
 
         const phoneSelectors = [
@@ -380,8 +378,6 @@ export class CheckoutPage {
             tid(testIds.inputRecipientPhone),
             `input[placeholder*="Nhập số điện thoại"]`,
             `input[placeholder*="Nhập SĐT người nhận quà"]`,
-            `input[placeholder*="Nháº­p sá»‘ Ä‘iá»‡n thoáº¡i"]`,
-            `input[placeholder*="Nháº­p SÄT ngÆ°á»i nháº­n quÃ "]`,
         ];
 
         const nameLocators = [
