@@ -4,17 +4,31 @@ import path from 'path';
 import fs from 'fs/promises';
 import { getProjectHomeUrl, warnIfHomepageQueryWasDropped } from '../components/helpers/navigation';
 import * as dialogHandler from '../components/helpers/dialog-handler';
+import { waitForDomReady } from '../components/helpers/element-actions';
 import { CheckoutPage } from '../components/pages/CheckoutPage';
 import { InvoicePage } from '../components/pages/InvoicePage';
 import { appendErrorReport } from '../utils/reportUtils';
 
+/**
+ * Tao data khach hang test cho checkout flow.
+ * Env co the override ten/phone, con lai sinh unique theo run de tranh trung data.
+ */
 function buildTestCustomer() {
+    // Test customer data declaration. Env values override the default generated data.
+    const runId = `${Date.now()}`;
+    const namePrefix = process.env.TEST_CUSTOMER_NAME || 'Test Customer';
+    const phonePrefix = process.env.TEST_CUSTOMER_PHONE?.replace(/\D/g, '').slice(0, 3) || '09';
+
     return {
-        name: process.env.TEST_CUSTOMER_NAME || `Test Customer ${Date.now()}`,
-        phone: process.env.TEST_CUSTOMER_PHONE || `09${Date.now().toString().slice(-8)}`,
+        name: `${namePrefix} ${runId}`,
+        phone: `${phonePrefix}${runId.slice(-8)}`.slice(0, 10),
     };
 }
 
+/**
+ * Flow checkout tong: mo website, chon san pham, dat hang, chup invoice va ghi report khi loi.
+ * File spec chi nen goi ham nay, moi thao tac UI chi tiet nam trong CheckoutPage/InvoicePage.
+ */
 export async function completeCheckoutFlow(page: Page, testInfo: TestInfo) {
     const testCustomer = buildTestCustomer();
     const websiteName = testInfo.project.name;
@@ -36,18 +50,15 @@ export async function completeCheckoutFlow(page: Page, testInfo: TestInfo) {
         // The handler is synchronous - it stores the dialog reference
         // without dismissing it, so we can capture a CDP screenshot.
         // -------------------------------------------------------
-        dialogTracker = dialogHandler.setupDialogTracker(page);
+        dialogTracker = dialogHandler.setupDialogTracker(page, websiteName);
         const checkoutPage = new CheckoutPage(page, dialogTracker);
-        const invoicePage = new InvoicePage(page);
+        const invoicePage = new InvoicePage(page, dialogTracker);
 
+        // Project homepage URL comes from Playwright project baseURL.
         const homeUrl = getProjectHomeUrl(testInfo);
         console.log(`Step 1: Navigating to homepage: ${homeUrl}`);
         await page.goto(homeUrl);
-        // Wait for page to be fully interactive instead of fixed timeout
-        await page.waitForLoadState('domcontentloaded');
-        await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
-            console.warn('Page did not reach networkidle during initial load, continuing with DOM-ready state.');
-        });
+        await waitForDomReady(page);
         await warnIfHomepageQueryWasDropped(page, homeUrl);
 
         // Check for dialog that might have appeared during navigation
@@ -57,7 +68,7 @@ export async function completeCheckoutFlow(page: Page, testInfo: TestInfo) {
         console.log('WAIT Checking for early page load errors...');
         const earlyError = await invoicePage.checkEarlyPageErrors(testInfo);
         if (earlyError) {
-            throw new Error('API error detected at initial page load - unable to proceed with test');
+            throw new Error(`API error detected at initial page load - unable to proceed with test. Screenshot: ${earlyError}`);
         }
         console.log('OK No early page errors detected, continuing...');
 
@@ -65,7 +76,7 @@ export async function completeCheckoutFlow(page: Page, testInfo: TestInfo) {
         await checkoutPage.selectTab(websiteName);
         // Check for API errors after selecting tab
         let apiError = await invoicePage.checkAndCaptureApiError(testInfo, 'select-tab');
-        if (apiError) throw new Error('API error detected after selecting tab');
+        if (apiError) throw new Error(`API error detected after selecting tab. Screenshot: ${apiError}`);
         // Check for dialog that might have appeared during tab selection
         await dialogHandler.checkAndHandleDialog(page, dialogTracker, 'select-tab');
 
@@ -73,14 +84,14 @@ export async function completeCheckoutFlow(page: Page, testInfo: TestInfo) {
         await checkoutPage.clickAddProductButton();
         // Check for API errors after adding product
         apiError = await invoicePage.checkAndCaptureApiError(testInfo, 'add-product');
-        if (apiError) throw new Error('API error detected after adding product');
+        if (apiError) throw new Error(`API error detected after adding product. Screenshot: ${apiError}`);
         await dialogHandler.checkAndHandleDialog(page, dialogTracker, 'add-product');
 
         console.log('Step 4: Proceeding to checkout...');
         await checkoutPage.proceedToCheckout();
         // Check for API errors after proceeding to checkout
         apiError = await invoicePage.checkAndCaptureApiError(testInfo, 'proceed-checkout');
-        if (apiError) throw new Error('API error detected during checkout');
+        if (apiError) throw new Error(`API error detected during checkout. Screenshot: ${apiError}`);
         // Check for dialog that might have appeared during proceed to checkout
         await dialogHandler.checkAndHandleDialog(page, dialogTracker, 'proceed-checkout');
 
@@ -88,21 +99,21 @@ export async function completeCheckoutFlow(page: Page, testInfo: TestInfo) {
         await checkoutPage.confirmPayment();
         // Check for API errors after confirming payment
         apiError = await invoicePage.checkAndCaptureApiError(testInfo, 'confirm-payment');
-        if (apiError) throw new Error('API error detected after confirming payment');
+        if (apiError) throw new Error(`API error detected after confirming payment. Screenshot: ${apiError}`);
         await dialogHandler.checkAndHandleDialog(page, dialogTracker, 'confirm-payment');
 
         console.log('Step 6: Filling customer information...');
         await checkoutPage.fillCustomerInfo(testCustomer);
         // Check for API errors after filling customer info
         apiError = await invoicePage.checkAndCaptureApiError(testInfo, 'fill-info');
-        if (apiError) throw new Error('API error detected after filling customer information');
+        if (apiError) throw new Error(`API error detected after filling customer information. Screenshot: ${apiError}`);
         await dialogHandler.checkAndHandleDialog(page, dialogTracker, 'fill-info');
 
         console.log('Step 7: Completing order...');
         await checkoutPage.completeOrder();
         // Check for API errors after completing order
         apiError = await invoicePage.checkAndCaptureApiError(testInfo, 'complete-order');
-        if (apiError) throw new Error('API error detected after completing order');
+        if (apiError) throw new Error(`API error detected after completing order. Screenshot: ${apiError}`);
         await dialogHandler.checkAndHandleDialog(page, dialogTracker, 'complete-order');
 
         console.log('Step 8: Capturing invoice...');
@@ -132,12 +143,12 @@ export async function completeCheckoutFlow(page: Page, testInfo: TestInfo) {
 
         console.error(`\nERROR Error during checkout for ${websiteName}:`, errorForReport);
 
-        // Use absolute path for screenshot inside test-results/err-screenshots folder
+        // Checkout failure screenshot file name and save location.
         const errorScreenshot = path.resolve(process.cwd(), 'test-results', 'err-screenshots', `${websiteName}_error.png`);
         let screenshotSaved = false;
         let screenshotPathForReport: string | undefined;
         const errorMessage = errorForReport.message || '';
-        const existingScreenshot = errorMessage.match(/Screenshot:\s*([^\r\n]+)/)?.[1]?.trim();
+        const existingScreenshot = errorMessage.match(/(?:See\s+)?screenshot:\s*([^\r\n]+)/i)?.[1]?.trim();
 
         if (dialogScreenshotPath) {
             screenshotSaved = await fs.access(path.resolve(process.cwd(), dialogScreenshotPath)).then(() => true).catch(() => false);
@@ -168,12 +179,12 @@ export async function completeCheckoutFlow(page: Page, testInfo: TestInfo) {
                         console.log(`OK Error screenshot saved (CDP) to: ${errorScreenshot}`);
                     } catch (cdpError) {
                         // Fallback to regular screenshot
-                        await page.screenshot({ path: errorScreenshot, fullPage: true });
+                        await page.screenshot({ path: errorScreenshot, fullPage: false });
                         console.log(`OK Error screenshot saved (fallback) to: ${errorScreenshot}`);
                     }
                     screenshotSaved = true;
                 }
-                // Use relative path from project root for the report (more portable)
+                // Relative screenshot path written into report-loi.* files.
                 screenshotPathForReport = screenshotPathForReport || path.join('test-results', 'err-screenshots', `${websiteName}_error.png`);
             } catch (screenshotError) {
                 console.warn(`WARN Could not take failure screenshot: ${(screenshotError as Error).message}`);

@@ -1,4 +1,4 @@
-import { Dialog, Page } from '@playwright/test';
+import { Dialog, Locator, Page } from '@playwright/test';
 import path from 'path';
 import fs from 'fs/promises';
 
@@ -10,38 +10,84 @@ export type CapturedDialog = {
 
 export type DialogTracker = {
     dialog: Dialog | null;
+    filePrefix?: string;
     lastDialog?: {
         message: string;
         type: string;
         context?: string;
         timestamp: number;
+        screenshotPath?: string;
     };
+    pendingCapture?: Promise<CapturedDialog | null>;
+    activeCapture?: Promise<CapturedDialog>;
 };
 
 const errScreenshotDir = path.join('test-results', 'err-screenshots');
 
+function safeFilePart(value: string | undefined) {
+    return value?.replace(/[^a-z0-9-_]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
+}
+
+function buildDialogScreenshotPath(tracker: DialogTracker, context: string, timestamp: number) {
+    const prefix = safeFilePart(tracker.filePrefix);
+    const safeContext = safeFilePart(context) || 'dialog';
+    const fileName = prefix
+        ? `dialog-${prefix}-${safeContext}-${timestamp}.png`
+        : `dialog-${safeContext}-${timestamp}.png`;
+    return path.join(errScreenshotDir, fileName);
+}
+
 async function withTimeout<T>(page: Page, promise: Promise<T>, label: string, timeoutMs = 5000): Promise<T> {
     return Promise.race([
         promise,
-        page.waitForTimeout(timeoutMs).then(() => {
+        new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs);
+        }).then(() => {
             throw new Error(`${label} timed out after ${timeoutMs}ms`);
         }),
     ]);
 }
 
-export function setupDialogTracker(page: Page): DialogTracker {
-    const tracker: DialogTracker = { dialog: null };
+/**
+ * Gan listener cho alert/confirm/prompt cua browser.
+ * Tracker giu dialog lai de flow co the chup screenshot roi dismiss co kiem soat.
+ */
+export function setupDialogTracker(page: Page, filePrefix?: string): DialogTracker {
+    const tracker: DialogTracker = { dialog: null, filePrefix: safeFilePart(filePrefix) };
     page.on('dialog', (dialog) => {
+        const timestamp = Date.now();
+        const screenshotPath = buildDialogScreenshotPath(tracker, 'auto', timestamp);
         tracker.dialog = dialog;
+        tracker.activeCapture = undefined;
         tracker.lastDialog = {
             message: dialog.message(),
             type: dialog.type(),
-            timestamp: Date.now(),
+            timestamp,
+            screenshotPath,
         };
+        tracker.pendingCapture = captureScreenshotWithDialog(page, screenshotPath)
+            .then((captured) => {
+                if (!captured) {
+                    return null;
+                }
+
+                return {
+                    message: dialog.message(),
+                    type: dialog.type(),
+                    screenshotPath,
+                };
+            })
+            .catch((error) => {
+                console.warn(`Could not auto-capture browser dialog: ${(error as Error).message}`);
+                return null;
+            });
     });
     return tracker;
 }
 
+/**
+ * Doi dialog native xuat hien trong mot khoang ngan, tra ve true neu tracker bat duoc dialog.
+ */
 export async function waitForTrackedDialog(page: Page, tracker: DialogTracker, timeout = 1500): Promise<boolean> {
     if (tracker.dialog) {
         return true;
@@ -57,6 +103,10 @@ export async function waitForTrackedDialog(page: Page, tracker: DialogTracker, t
     return dialogAppeared || Boolean(tracker.dialog);
 }
 
+/**
+ * Chup man hinh khi co dialog/native overlay.
+ * Uu tien CDP screenshot vi Playwright screenshot thong thuong co the bi chan boi dialog.
+ */
 export async function captureScreenshotWithDialog(page: Page, filePath: string): Promise<boolean> {
     try {
         await fs.mkdir(path.dirname(filePath), { recursive: true }).catch(() => { });
@@ -83,14 +133,57 @@ export async function captureScreenshotWithDialog(page: Page, filePath: string):
     }
 }
 
+/**
+ * Chup trang thai loi tong quat, dung fallback khi flow fail ma chua co screenshot rieng.
+ */
 export async function captureFailureState(page: Page, filePath: string): Promise<void> {
     await fs.mkdir(path.dirname(filePath), { recursive: true }).catch(() => { });
     const captured = await captureScreenshotWithDialog(page, filePath);
     if (!captured && !page.isClosed()) {
-        await page.screenshot({ path: filePath, fullPage: true }).catch(() => { });
+        await page.screenshot({ path: filePath, fullPage: false }).catch(() => { });
     }
 }
 
+/**
+ * Chup vung UI quan trong truoc, sau do moi fallback sang page screenshot.
+ * Dung khi loi nam trong popup/card/form can anh gan hon.
+ */
+export async function captureFocusedFailureState(
+    page: Page,
+    filePath: string,
+    targets: Locator[] = []
+): Promise<void> {
+    await fs.mkdir(path.dirname(filePath), { recursive: true }).catch(() => { });
+
+    for (const target of targets) {
+        const count = await target.count().catch(() => 0);
+        for (let index = 0; index < count; index++) {
+            const candidate = target.nth(index);
+            const visible = await candidate.isVisible({ timeout: 500 }).catch(() => false);
+            if (!visible) {
+                continue;
+            }
+
+            await candidate.screenshot({
+                path: filePath,
+                animations: 'disabled',
+                timeout: 5000,
+            }).catch(() => { });
+
+            if (await fs.access(filePath).then(() => true).catch(() => false)) {
+                return;
+            }
+        }
+    }
+
+    if (!page.isClosed()) {
+        await page.screenshot({ path: filePath, fullPage: false }).catch(() => { });
+    }
+}
+
+/**
+ * Tao overlay HTML hien message dialog de screenshot van doc duoc noi dung dialog.
+ */
 export async function captureDialogMessageOverlay(
     page: Page,
     filePath: string,
@@ -155,45 +248,70 @@ export async function captureDialogMessageOverlay(
     }
 }
 
+/**
+ * Chup screenshot, lay message/type, dismiss dialog va tra ve thong tin loi.
+ */
 export async function captureAndDismissDialog(
     page: Page,
     tracker: DialogTracker,
     context: string
 ): Promise<CapturedDialog> {
-    const timestamp = Date.now();
-    const safeContext = context.replace(/[^a-z0-9-_]/gi, '-');
-    const screenshotPath = path.join(errScreenshotDir, `dialog-${safeContext}-${timestamp}.png`);
-    const dialog = tracker.dialog;
-    const message = dialog?.message?.() ?? tracker.lastDialog?.message ?? 'Unknown dialog message';
-    const type = dialog?.type?.() ?? tracker.lastDialog?.type ?? 'dialog';
-    tracker.lastDialog = {
-        message,
-        type,
-        context,
-        timestamp,
-    };
-
-    console.warn(`[${context}] Browser dialog detected (${type}): "${message}"`);
-    const nativeScreenshotCaptured = page.isClosed() ? false : await captureScreenshotWithDialog(page, screenshotPath);
-
-    if (tracker.dialog) {
-        await tracker.dialog.dismiss().catch(() => { });
-        tracker.dialog = null;
+    if (tracker.activeCapture) {
+        return tracker.activeCapture;
     }
 
-    const screenshotExists = await fs.access(screenshotPath).then(() => true).catch(() => false);
-    if (!nativeScreenshotCaptured || !screenshotExists) {
-        await captureDialogMessageOverlay(page, screenshotPath, type, message);
-    }
+    tracker.activeCapture = (async () => {
+        const timestamp = Date.now();
+        const dialog = tracker.dialog;
+        const message = dialog?.message?.() ?? tracker.lastDialog?.message ?? 'Unknown dialog message';
+        const type = dialog?.type?.() ?? tracker.lastDialog?.type ?? 'dialog';
+        const pendingCapture = await tracker.pendingCapture?.catch(() => null);
+        const screenshotPath = pendingCapture?.screenshotPath
+            ?? tracker.lastDialog?.screenshotPath
+            ?? buildDialogScreenshotPath(tracker, context, timestamp);
+        tracker.lastDialog = {
+            message,
+            type,
+            context,
+            timestamp,
+            screenshotPath,
+        };
 
-    console.warn(`[${context}] Dialog screenshot saved: ${screenshotPath}`);
-    return { message, type, screenshotPath };
+        console.warn(`[${context}] Browser dialog detected (${type}): "${message}"`);
+        const screenshotAlreadyExists = await fs.access(screenshotPath).then(() => true).catch(() => false);
+        if (!screenshotAlreadyExists && !page.isClosed()) {
+            await captureScreenshotWithDialog(page, screenshotPath);
+        }
+
+        if (tracker.dialog) {
+            await tracker.dialog.dismiss().catch(() => { });
+            tracker.dialog = null;
+        }
+
+        if (!page.isClosed()) {
+            await captureDialogMessageOverlay(page, screenshotPath, type, message);
+        }
+
+        const screenshotExists = await fs.access(screenshotPath).then(() => true).catch(() => false);
+        if (!screenshotExists) {
+            console.warn(`[${context}] Dialog screenshot was not created: ${screenshotPath}`);
+        }
+
+        console.warn(`[${context}] Dialog screenshot saved: ${screenshotPath}`);
+        return { message, type, screenshotPath };
+    })();
+
+    return tracker.activeCapture;
 }
 
 export function buildDialogError(context: string, captured: CapturedDialog): Error {
     return new Error(`[${context}] Browser dialog (${captured.type}): ${captured.message}. Screenshot: ${captured.screenshotPath}`);
 }
 
+/**
+ * Bien dialog da bat duoc thanh Error co screenshot path.
+ * Dung trong catch block khi flow fail nhung dialog chua duoc xu ly.
+ */
 export async function capturePendingDialogError(
     page: Page,
     tracker: DialogTracker | undefined,
@@ -211,16 +329,19 @@ export async function capturePendingDialogError(
         };
     }
 
+    const pendingCapture = await tracker.pendingCapture?.catch(() => null);
     const timestamp = Date.now();
-    const safeContext = context.replace(/[^a-z0-9-_]/gi, '-');
-    const screenshotPath = path.join(errScreenshotDir, `dialog-${safeContext}-${timestamp}.png`);
+    const screenshotPath = pendingCapture?.screenshotPath
+        ?? tracker.lastDialog?.screenshotPath
+        ?? buildDialogScreenshotPath(tracker, context, timestamp);
     const captured = {
         message: tracker.lastDialog?.message ?? 'Unknown dialog message',
         type: tracker.lastDialog?.type ?? 'dialog',
         screenshotPath,
     };
 
-    if (!page.isClosed()) {
+    const screenshotExists = await fs.access(screenshotPath).then(() => true).catch(() => false);
+    if (!screenshotExists && !page.isClosed()) {
         await captureDialogMessageOverlay(page, screenshotPath, captured.type, captured.message);
     }
 
@@ -230,6 +351,9 @@ export async function capturePendingDialogError(
     };
 }
 
+/**
+ * Neu tracker dang co dialog thi chup/dismiss va throw error ngay.
+ */
 export async function checkAndHandleDialog(page: Page, tracker: DialogTracker, context: string): Promise<void> {
     if (!tracker.dialog) {
         return;
@@ -239,6 +363,9 @@ export async function checkAndHandleDialog(page: Page, tracker: DialogTracker, c
     throw buildDialogError(context, captured);
 }
 
+/**
+ * Doi dialog trong timeout ngan; neu co thi xu ly nhu loi blocking.
+ */
 export async function waitAndHandleDialog(
     page: Page,
     tracker: DialogTracker,

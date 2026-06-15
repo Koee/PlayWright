@@ -2,12 +2,8 @@ import path from 'path';
 import fs from 'fs/promises';
 
 /**
- * Append a Vietnamese error report entry to test-results/report-loi.md
- * Also creates JSON and CSV versions of the report
- * 
- * @param websiteName - Name of the website where the error occurred
- * @param error - The error object or message
- * @param screenshotPath - Optional path to a screenshot of the error (can be relative or absolute)
+ * Ghi report loi vao test-results/report-loi.md, report-loi.json va report-loi.csv.
+ * Cac flow checkout/copy goi ham nay trong catch block de intern co noi xem loi tap trung.
  */
 export async function appendErrorReport(websiteName: string, error: any, screenshotPath?: string) {
     try {
