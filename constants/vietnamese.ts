@@ -52,6 +52,9 @@ export const viRegex = {
     phonePlaceholder: /Nhập\s+số\s+điện\s+thoại|Nhập\s+SĐT\s+người\s+nhận\s+quà/i,
 } as const;
 
+/**
+ * Tao selector text regex cho cac label tieng Viet co dau/khong dau.
+ */
 export function textRegexSelector(pattern: RegExp) {
     return `text=${pattern.toString()}`;
 }

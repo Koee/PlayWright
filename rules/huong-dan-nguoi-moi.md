@@ -1,139 +1,179 @@
-# Huong Dan Nguoi Moi
+# Huong Dan Cho ban
 
-Tai lieu nay giup thanh vien moi hieu nhanh cau truc Playwright automation hien tai, biet doc code tu dau, viet testcase moi o dau va tach helper/data nhu the nao de project de maintain khi mo rong.
+Tai lieu nay giup ban tham gia project nhanh nhat co the. Muc tieu khong phai doc het source code ngay tu dau, ma la biet:
 
-## 1. Cau Truc Project Hien Tai
+- Chay test nhu the nao.
+- Doc flow code theo thu tu nao de khong bi roi.
+- Khi viet test moi thi bat dau tu file nao.
+- Khi can sua UI action, selector, timeout, report, data thi tim o dau.
 
-```text
-project-root/
-+-- tests/
-|   +-- checkout/
-|       +-- checkout-flow.spec.ts
-|       +-- copy-functionality.spec.ts
-+-- steps/
-|   +-- checkout.steps.ts
-|   +-- copy.steps.ts
-+-- components/
-|   +-- pages/
-|   |   +-- CheckoutPage.ts
-|   |   +-- CopyPage.ts
-|   |   +-- InvoicePage.ts
-|   +-- sections/
-|   +-- helpers/
-|   |   +-- dialog-handler.ts
-|   |   +-- element-actions.ts
-|   |   +-- navigation.ts
-|   +-- assertions/
-+-- fixtures/
-+-- setup/
-+-- config/
-+-- constants/
-+-- test-data/
-|   +-- env/
-|       +-- .env
-|       +-- .env.example
-+-- utils/
-+-- scripts/
-+-- rules/
-+-- playwright.config.ts
-+-- package.json
-+-- tsconfig.json
-+-- README.md
-```
+Project nay la Playwright + TypeScript, dung de automation cac flow checkout/copy tren nhieu website.
 
-Ghi chu:
+---
 
-- `playwright.config.ts` van nam o root de lenh `playwright test` hoat dong theo mac dinh.
-- `tests/checkout` chi la entry point cua testcase.
-- `steps` dieu phoi flow test theo nghiep vu.
-- `components/pages` chua page object va cac thao tac UI/capture chi tiet.
-- `components/helpers` chua helper dung chung o muc thap hon.
+## 1. Ban Can Hieu 1 Y Tuong Chinh
 
-## 2. Cach Doc Code Cho Nguoi Moi
-
-Nen doc theo thu tu sau:
-
-1. Doc `README.md` de nam command va luu y khi chay full checkout flow.
-2. Doc `playwright.config.ts` de hieu danh sach project/site, base URL va timeout mac dinh.
-3. Doc `config/projects.config.ts` de hieu moi site dang map voi bien `BASE_URL_*` nao.
-4. Doc `config/env.config.ts` va `test-data/env/.env.example` de biet can khai bao bien moi truong nao.
-5. Doc spec trong `tests/checkout/` de thay testcase dang goi step nao.
-6. Doc `steps/checkout.steps.ts` hoac `steps/copy.steps.ts` de hieu thu tu flow nghiep vu.
-7. Doc `components/pages/CheckoutPage.ts`, `components/pages/InvoicePage.ts`, `components/pages/CopyPage.ts` de hieu thao tac UI chi tiet.
-8. Doc `components/helpers/*` de biet helper nao da co san.
-9. Doc `constants/*` de dung lai selector/test id thay vi hard-code lai trong spec.
-10. Doc `utils/reportUtils.ts` neu can hieu cach ghi report loi.
-
-Nguyen tac doc code hien tai: `tests/` la entry point, `steps/` la flow nghiep vu, `components/pages/` la chi tiet thao tac UI, `components/helpers/` la helper dung chung.
-
-## 3. Viet Testcase Moi O Dau
-
-### Test script
-
-- Test lien quan checkout/copy: them file moi trong `tests/checkout/`.
-- Test lien quan auth sau nay: tao `tests/auth/`.
-- Test lien quan dashboard sau nay: tao `tests/dashboard/`.
-- Dat ten file theo format: `<feature-or-flow>.spec.ts`.
-
-Vi du:
+Code trong project duoc chia theo lop:
 
 ```text
-tests/checkout/apply-discount.spec.ts
-tests/auth/login.spec.ts
-tests/dashboard/order-filter.spec.ts
+tests/        -> noi khai bao testcase, goi step chinh
+steps/        -> noi sap xep flow nghiep vu theo tung buoc
+components/   -> noi thao tac UI chi tiet
+helpers/      -> helper dung chung cho click, dialog, navigation, error
+constants/    -> selector, text, test id, timeout/config dung lai
+test-data/    -> data test, env, file mau
+utils/        -> report/log utility
 ```
 
-### Test steps
+Hay nho cong thuc nay:
 
-Neu mot flow co nhieu buoc va duoc dung lai o nhieu spec, tach vao `steps/`.
+```text
+Spec khong nen lam viec nang.
+Spec chi goi step.
+Step dieu phoi flow.
+Page Object thao tac UI.
+Helper xu ly viec dung chung.
+Constants chua gia tri lap lai.
+```
 
-Vi du:
+Vi du flow checkout:
+
+```text
+tests/checkout/checkout-flow.spec.ts
+  -> steps/checkout.steps.ts
+      -> components/pages/CheckoutPage.ts
+      -> components/pages/InvoicePage.ts
+          -> components/helpers/dialog-handler.ts
+          -> components/helpers/element-actions.ts
+          -> components/helpers/page-error.ts
+          -> constants/*
+```
+
+Vi du flow copy:
+
+```text
+tests/checkout/copy-functionality.spec.ts
+tests/checkout/copy-project-stages.spec.ts
+  -> steps/copy.steps.ts
+      -> components/pages/CopyPage.ts
+          -> components/helpers/dialog-handler.ts
+          -> components/helpers/element-actions.ts
+          -> components/helpers/navigation.ts
+          -> components/helpers/page-error.ts
+```
+
+---
+
+## 2. 30 Phut Dau Nen Doc Gi
+
+Dung thu tu nay. Dung doc lan man het project.
+
+### Buoc 1: Doc command va cau hinh chay test
+
+Doc:
+
+```text
+README.md
+package.json
+playwright.config.ts
+```
+
+Can nam:
+
+- Lenh nao de chay test.
+- Test nam trong folder nao.
+- Playwright dang tao project/site nhu the nao.
+- Timeout, screenshot, video, trace dang cau hinh o dau.
+
+### Buoc 2: Doc danh sach website/project
+
+Doc:
+
+```text
+config/projects.config.ts
+config/env.config.ts
+config/test.config.ts
+test-data/env/.env.example
+```
+
+Can nam:
+
+- Moi website map voi bien `BASE_URL_*` nao.
+- URL lay tu env, khong hardcode trong test.
+- Timeout dung chung nam trong `config/test.config.ts`.
+
+### Buoc 3: Doc spec de biet test bat dau tu dau
+
+Doc:
+
+```text
+tests/checkout/checkout-flow.spec.ts
+tests/checkout/copy-functionality.spec.ts
+tests/checkout/copy-project-stages.spec.ts
+```
+
+Can nam:
+
+- Spec chi khai bao ten test, tag, timeout va goi step.
+- Neu spec dai qua nhieu logic UI, do la dau hieu can tach xuong `steps/` hoac `components/pages/`.
+
+### Buoc 4: Doc step de hieu flow nghiep vu
+
+Doc:
 
 ```text
 steps/checkout.steps.ts
 steps/copy.steps.ts
 ```
 
-Spec chi nen doc nhu kich ban test: arrange, action, assertion. Logic thao tac dai phai dua vao `steps/` hoac `components/pages/`.
+Can nam:
 
-### Page object va UI component
+- Checkout flow co nhung buoc nao.
+- Copy flow co nhung buoc nao.
+- Step nao goi page object nao.
+- Loi duoc capture/report o dau.
 
-- Page-level action: `components/pages/`.
-- Thanh phan UI tai su dung: `components/sections/`.
-- Helper thao tac browser/element: `components/helpers/`.
-- Assertion dung chung: `components/assertions/`.
+### Buoc 5: Doc page object theo flow minh dang lam
 
-Vi du:
+Neu lam checkout, doc:
 
 ```text
 components/pages/CheckoutPage.ts
-components/pages/CopyPage.ts
 components/pages/InvoicePage.ts
-components/sections/ProductCard.ts
-components/assertions/invoice.assertions.ts
 ```
 
-### Data
-
-- JSON data: `test-data/json/`.
-- File upload/download fixture: `test-data/files/`.
-- Bien moi truong mau: `test-data/env/.env.example`.
-- Secret thuc te dat trong `test-data/env/.env`, khong commit file nay.
-
-### Constants
-
-Nhung selector, test id, timeout, message dung lai nhieu lan nen dat trong `constants/`.
-
-Vi du:
+Neu lam copy, doc:
 
 ```text
-constants/testIds.ts
-constants/selectors.ts
-constants/timeouts.ts
-constants/messages.ts
+components/pages/CopyPage.ts
 ```
 
-## 4. Cach Chay Du An
+Can nam:
+
+- Function nao click tab.
+- Function nao add product.
+- Function nao checkout/order.
+- Function nao wait QR/copy.
+- Function nao capture invoice/screenshot.
+
+### Buoc 6: Chi doc helper khi can sua logic dung chung
+
+Doc khi can:
+
+```text
+components/helpers/element-actions.ts
+components/helpers/dialog-handler.ts
+components/helpers/navigation.ts
+components/helpers/page-error.ts
+utils/reportUtils.ts
+constants/*
+```
+
+Khong nen sua helper neu chua chac, vi helper anh huong nhieu flow.
+
+---
+
+## 3. Cach Chay Project
 
 Cai dependency:
 
@@ -141,60 +181,60 @@ Cai dependency:
 npm install
 ```
 
-Tao `test-data/env/.env` tu file mau:
+Tao env local tu file mau:
 
 ```bash
 copy test-data\env\.env.example test-data\env\.env
 ```
 
-Liet ke test de kiem tra config/import:
+Kiem tra Playwright co nhan test khong:
 
 ```bash
 npm run test:list
 ```
 
-Type-check:
+Kiem tra TypeScript:
 
 ```bash
 npm run typecheck
 ```
 
-Chay toan bo test:
+Chay tat ca test:
 
 ```bash
 npm test
 ```
 
-Chay checkout flow:
+Chay checkout:
 
 ```bash
 npm run test:checkout
 ```
 
-Chay copy flow:
+Chay copy NDS:
 
 ```bash
 npm run test:copy
 ```
 
-Chay mot file theo path moi:
+Chay mot spec:
 
 ```bash
-npx playwright test tests/checkout/copy-functionality.spec.ts
+npx playwright test tests/checkout/copy-project-stages.spec.ts
 ```
 
-Chay mot project/site:
+Chay mot website/project:
 
 ```bash
 npx playwright test --project=si
 ```
 
-Neu gap loi `No tests found`, hay kiem tra:
+Chay theo tag:
 
-- Dang chay lenh tu project root.
-- Khong dung path cu `tests/checkout-flow.spec.ts` hoac `tests/copy-functionality.spec.ts`.
-- Chay `npm run test:list` de xac nhan Playwright nhan du spec trong `tests/checkout/`.
-- Bien `BASE_URL_*` trong `test-data/env/.env` da co gia tri URL day du, vi runner se validate URL khi load config.
+```bash
+npx playwright test --grep "@copy-stages"
+npx playwright test --grep "@smoke"
+```
 
 Don screenshot/report cu:
 
@@ -202,40 +242,431 @@ Don screenshot/report cu:
 npm run cleanup:screenshots
 ```
 
-Luu y quan trong: full checkout flow co the tao don hang that tren URL dang cau hinh. Chi chay full flow tren moi truong test/staging hoac data an toan.
+Luu y: checkout flow co the tao don hang that tren URL dang cau hinh. Chi chay full flow tren moi truong test/staging an toan.
 
-## 5. Checklist Truoc Khi Commit/Merge
+---
 
-- `npm run typecheck` phai pass.
-- `npm run test:list` phai thay du test mong muon.
-- Moi site moi phai them vao `config/projects.config.ts` va them bien mau vao `test-data/env/.env.example`.
-- Khong hard-code secret, token, tai khoan that trong code.
-- Khong them selector trung lap neu da co trong `constants/`.
-- Khong viet helper dai trong spec neu helper do co kha nang dung lai.
-- Neu sua checkout/copy flow, can kiem tra screenshot/report path van dung.
-- Neu them bien moi truong, cap nhat `test-data/env/.env.example`.
-- Neu them command moi, cap nhat `README.md` va file huong dan nay.
+## 4. Hieu Flow Checkout
 
-## 6. Danh Gia Hien Tai Va Huong Nang Cap
+Entry point:
 
-Da tot:
+```text
+tests/checkout/checkout-flow.spec.ts
+```
 
-- Test runner da nhan du suite qua `npm run test:list`.
-- Project da co `tsconfig.json`, co the type-check bang `npm run typecheck`.
-- Hai spec dai da duoc lam mong: spec goi step runner, khong con chua logic UI dai.
-- Checkout flow da tach sang `steps/checkout.steps.ts`, `CheckoutPage.ts` va `InvoicePage.ts`.
-- Copy flow da tach sang `steps/copy.steps.ts` va `CopyPage.ts`.
-- Helper dung chung da duoc tach ra `components/helpers`.
-- Config env/timeout da tach ra `config`.
-- Rule files da gom vao `rules`.
-- README va tai lieu onboarding da co noi de nguoi moi bat dau.
+Spec goi:
 
-Can cai thien tiep:
+```text
+completeCheckoutFlow(page, testInfo)
+```
 
-- `InvoicePage.ts` va `CopyPage.ts` van con dai. Khi co thoi gian nen tach nho tiep sang `components/sections` nhu `ProductCard`, `CopyCard`, `InvoicePopup`.
-- Mot so UI text/log dang bi mojibake encoding. Can chuan hoa UTF-8 de selector va log de doc hon.
-- Can them `constants/messages.ts` va `constants/timeouts.ts` neu message/timeout bat dau lap lai nhieu.
-- Can xac dinh chien luoc test data cho doanh nghiep: staging data, cleanup order, mock API hoac test account rieng.
-- Nen them tag nhu `@smoke`, `@regression`, `@checkout` khi suite lon hon.
+Function nam o:
 
-Ket luan: cau truc hien tai da de tiep can hon ban dau va co du diem neo cho nguoi moi doc flow, them test va tach helper. Huong nang cap tiep theo la tach cac page object dai thanh section objects va chuan hoa encoding/selector contract voi frontend.
+```text
+steps/checkout.steps.ts
+```
+
+Thu tu flow:
+
+```text
+1. Mo homepage theo baseURL cua project.
+2. Check page co loi API/dialog som khong.
+3. Chon tab theo website.
+4. Bam nut + de them san pham.
+5. Di toi checkout.
+6. Xac nhan thanh toan.
+7. Dien thong tin khach hang test.
+8. Hoan tat don hang.
+9. Tim va chup invoice.
+10. Neu fail, chup screenshot va ghi report loi.
+```
+
+File phu trach tung phan:
+
+```text
+CheckoutPage.ts
+  - selectTab()
+  - clickAddProductButton()
+  - proceedToCheckout()
+  - confirmPayment()
+  - fillCustomerInfo()
+  - completeOrder()
+
+InvoicePage.ts
+  - checkEarlyPageErrors()
+  - checkAndCaptureApiError()
+  - captureInvoice()
+```
+
+Khi sua checkout:
+
+- Sua thu tu flow o `steps/checkout.steps.ts`.
+- Sua thao tac UI o `CheckoutPage.ts`.
+- Sua invoice/screenshot/error detection o `InvoicePage.ts`.
+- Sua selector/test id dung chung trong `constants/`.
+
+Khong nen:
+
+- Viet selector dai truc tiep trong spec.
+- Them `waitForTimeout`.
+- Hardcode URL, phone, email, password that.
+
+---
+
+## 5. Hieu Flow Copy
+
+Entry point:
+
+```text
+tests/checkout/copy-functionality.spec.ts
+tests/checkout/copy-project-stages.spec.ts
+```
+
+Spec goi:
+
+```text
+runCopyFunctionality(page, testInfo)
+runProjectCopyStages(page, testInfo)
+```
+
+Function nam o:
+
+```text
+steps/copy.steps.ts
+```
+
+### Copy NDS flow
+
+```text
+1. Mo homepage.
+2. Lay danh sach tab can test theo website.
+3. Moi tab:
+   - Chon tab.
+   - Chon san pham.
+   - Doi QR/copy card san sang.
+   - Bam copy.
+   - Doi trang thai "Da sao chep".
+   - Doc clipboard va luu file.
+4. Assert tat ca tab pass va co file clipboard.
+```
+
+### Copy project stages flow
+
+```text
+1. Mo homepage.
+2. Moi tab:
+   - Chon tab.
+   - Chon san pham va doi copy card san sang.
+   - Copy NDS.
+   - Bam Dat Hang.
+   - Copy XNDH.
+   - Bam xac nhan don/thanh toan.
+   - Copy TTDH.
+   - Reload truoc khi sang tab tiep theo.
+3. Assert moi tab co du 3 stage: NDS, XNDH, TTDH.
+```
+
+File phu trach chinh:
+
+```text
+CopyPage.ts
+  - getTabsForWebsite()
+  - testCopyInTab()
+  - testProjectCopyStagesInTab()
+  - selectTab()
+  - waitForQrLoadedThenCopyEnabled()
+  - clickCopyButton()
+  - waitForCopyStateChange()
+  - readAndSaveClipboardContentOnly()
+  - copyAndSaveProjectStage()
+```
+
+Khi sua copy:
+
+- Sua flow tong o `steps/copy.steps.ts`.
+- Sua logic UI/clipboard/QR o `components/pages/CopyPage.ts`.
+- Neu them website/tab moi, xem `getTabsForWebsite()` va tab config trong `CopyPage.ts`.
+
+---
+
+## 6. Ban Muon Lam Viec Gi Thi Bat Dau O Dau
+
+### Them testcase moi
+
+1. Tao file spec trong `tests/<feature>/`.
+2. Trong spec, chi goi mot step function.
+3. Tao/sua step trong `steps/`.
+4. Neu can thao tac UI, tao/sua page object trong `components/pages/`.
+
+Vi du:
+
+```text
+tests/checkout/apply-discount.spec.ts
+steps/checkout.steps.ts
+components/pages/CheckoutPage.ts
+```
+
+### Them mot buoc moi vao checkout
+
+Sua:
+
+```text
+steps/checkout.steps.ts
+components/pages/CheckoutPage.ts
+```
+
+Quy tac:
+
+- Step ghi buoc nghiep vu.
+- Page object chua click/fill/wait UI chi tiet.
+
+### Them mot buoc moi vao copy
+
+Sua:
+
+```text
+steps/copy.steps.ts
+components/pages/CopyPage.ts
+```
+
+Quy tac:
+
+- Neu chi doi thu tu buoc, sua `steps/copy.steps.ts`.
+- Neu doi cach click/wait/read clipboard, sua `CopyPage.ts`.
+
+### Them website moi
+
+Sua:
+
+```text
+config/projects.config.ts
+test-data/env/.env.example
+test-data/env/.env
+```
+
+Can lam:
+
+- Them project name va env key vao `SITE_PROJECTS`.
+- Them bien `BASE_URL_*` vao `.env.example`.
+- Them gia tri that vao `.env` local.
+- Chay `npm run test:list`.
+
+### Them selector/test id/message dung chung
+
+Sua:
+
+```text
+constants/testIds.ts
+constants/selectors.ts
+constants/vietnamese.ts
+```
+
+Khong nen copy-paste selector o nhieu file.
+
+### Them data test
+
+Dung folder:
+
+```text
+test-data/json/    -> data JSON
+test-data/files/   -> file upload/download mau
+test-data/env/     -> env mau va env local
+types/             -> type/interface cho payload phuc tap
+```
+
+Khong commit secret that trong `.env`.
+
+### Them API helper hoac mock response
+
+Nen dat:
+
+```text
+utils/ hoac fixtures/       -> API helper/setup data
+test-data/json/             -> mock response/payload mau
+types/                      -> request/response type
+constants/                  -> endpoint/status/message lap lai
+```
+
+Quy tac:
+
+- Base URL lay tu env/config.
+- Endpoint lap lai dua vao constants.
+- Payload/response phuc tap nen co type.
+- Mock response phai giong schema that.
+
+---
+
+## 7. Cac Helper Quan Trong
+
+### `components/helpers/element-actions.ts`
+
+Dung cho thao tac element dung chung:
+
+- `clickElement()` click theo nhieu selector fallback.
+- `fillInput()` dien input theo selector fallback.
+- `firstVisibleLocator()` tim locator dau tien visible.
+- `waitForDomReady()` doi DOM san sang.
+- `waitForConditionPoll()` doi interval ngan trong cac loop co condition rieng.
+
+Chi sua file nay khi logic dung chung cho nhieu page object.
+
+### `components/helpers/dialog-handler.ts`
+
+Dung cho browser dialog:
+
+- Track alert/confirm/prompt.
+- Capture screenshot khi dialog xuat hien.
+- Dismiss dialog va throw error co message ro.
+
+Neu test fail vi popup native cua browser, doc file nay.
+
+### `components/helpers/navigation.ts`
+
+Dung cho URL/navigation:
+
+- Lay homepage tu Playwright project baseURL.
+- Canh bao neu query cua homepage bi drop.
+
+### `components/helpers/page-error.ts`
+
+Dung de phat hien loi blocking tren page:
+
+- Internal server error.
+- API error.
+- Google Sheets quota/read request error.
+- Network/fetch error.
+
+Neu flow fail vi page hien loi API, doc file nay va `InvoicePage.ts`.
+
+### `utils/reportUtils.ts`
+
+Dung de ghi report loi vao folder report.
+
+---
+
+## 8. Quy Tac Viet Code De Khong Bi Review Lai Nhieu
+
+Luon lam:
+
+- Dat ten test theo y nghia: `should ... when ...`.
+- Them tag: `@smoke`, `@slow`, `@checkout`, `@copy`, `@copy-stages`.
+- Dung timeout chung trong `config/test.config.ts`.
+- Dung selector on dinh: role, label, test id, constants.
+- Moi test phai co assertion ro.
+- Khi fail, nen co screenshot/report de debug.
+- Chay `npm run typecheck` va `npm run test:list` truoc khi bao xong.
+
+Khong lam:
+
+- Khong dung `page.waitForTimeout()`.
+- Khong commit `test.only`, `page.pause()`, debug log tam thoi.
+- Khong hardcode URL/secret/token/password.
+- Khong viet flow UI dai trong spec.
+- Khong dung `force: true` neu chua co ly do rat ro.
+- Khong them helper dung chung neu logic moi chi dung 1 noi.
+
+---
+
+## 9. Checklist Khi Intern Nhan Task
+
+Truoc khi code:
+
+- Task thuoc flow nao: checkout, copy, config, data, API, report?
+- Entry spec la file nao?
+- Step function nao dang dieu phoi flow?
+- Page object nao dang thao tac UI?
+- Da co helper/constants nao dung lai duoc chua?
+
+Trong khi code:
+
+- Sua dung lop trach nhiem.
+- Neu code lap lai 2+ noi, can nghi den helper/constants.
+- Neu selector/text lap lai, dua vao constants.
+- Neu data phu thuoc moi truong, dua vao env/config.
+
+Truoc khi gui review:
+
+```bash
+npm run typecheck
+npm run test:list
+```
+
+Neu co thay doi flow quan trong, chay them spec lien quan:
+
+```bash
+npx playwright test tests/checkout/checkout-flow.spec.ts --project=si
+npx playwright test tests/checkout/copy-functionality.spec.ts --project=si
+npx playwright test tests/checkout/copy-project-stages.spec.ts --project=si
+```
+
+---
+
+## 10. Loi Thuong Gap Va Cach Tu Kiem Tra
+
+### `No tests found`
+
+Kiem tra:
+
+- Dang o project root chua.
+- Path spec dung chua.
+- Chay `npm run test:list`.
+
+### Missing env
+
+Kiem tra:
+
+- Da tao `test-data/env/.env` chua.
+- Bien `BASE_URL_*` co trong `.env.example` va `.env` chua.
+
+### Test flaky vi cho UI
+
+Kiem tra:
+
+- Co `waitForTimeout` khong.
+- Co selector qua mong manh khong.
+- Co click khi button chua visible/enabled khong.
+- Co dialog/API error bi nuot khong.
+
+### Clipboard/copy fail
+
+Kiem tra:
+
+- Browser co permission clipboard trong `playwright.config.ts`.
+- Copy button da active chua.
+- QR/copy card da load chua.
+- File clipboard da duoc save vao `test-results/pass-screenshots` chua.
+
+### Checkout tao don that
+
+Kiem tra:
+
+- Base URL co phai staging/test khong.
+- Test data co an toan khong.
+- Co can cleanup data sau test khong.
+
+---
+
+## 11. Ket Luan Ngan
+
+Neu ban moi vao project, hay di theo duong nay:
+
+```text
+README.md
+  -> playwright.config.ts
+  -> config/*
+  -> tests/checkout/*.spec.ts
+  -> steps/*.steps.ts
+  -> components/pages/*
+  -> helpers/constants khi can
+```
+
+Khi viet code moi:
+
+```text
+Spec goi step.
+Step goi page object.
+Page object goi helper/constants.
+Data/API/config dat dung folder.
+```
+
+Chi can giu dung flow nay,ban co the bat dau sua task nho ma khong can hieu het toan bo project ngay tu ngay dau.

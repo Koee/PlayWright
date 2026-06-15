@@ -1,5 +1,7 @@
 import { Locator, Page } from '@playwright/test';
+import { setTimeout as delay } from 'timers/promises';
 import * as dialogHandler from './dialog-handler';
+import { SHORT_WAIT_MS, UI_READY_TIMEOUT_MS } from '../../config/test.config';
 
 export type ClickElementOptions = {
     visibilityTimeout: number;
@@ -7,6 +9,10 @@ export type ClickElementOptions = {
     waitForNav: boolean;
 };
 
+/**
+ * Click mot action theo danh sach selector fallback.
+ * Dung khi cung mot nut co nhieu cach locate khac nhau giua cac website.
+ */
 export async function clickElement(
     page: Page,
     selectors: string[],
@@ -19,12 +25,28 @@ export async function clickElement(
             const element = page.locator(selector).first();
             if (await element.isVisible({ timeout: options.visibilityTimeout }) && await element.isEnabled().catch(() => true)) {
                 await element.click({ timeout: options.clickTimeout });
+                if (dialogTracker) {
+                    const context = `${actionName.toLowerCase().replace(/\s+/g, '-')}-click`;
+                    await dialogHandler.waitAndHandleDialog(page, dialogTracker, context, SHORT_WAIT_MS);
+                }
                 if (options.waitForNav) {
-                    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => { });
+                    const waitForReady = waitForDomReady(page, UI_READY_TIMEOUT_MS).catch(() => { });
+                    if (dialogTracker) {
+                        const context = `${actionName.toLowerCase().replace(/\s+/g, '-')}-page-ready`;
+                        await Promise.race([
+                            waitForReady,
+                            dialogHandler.waitAndHandleDialog(page, dialogTracker, context, UI_READY_TIMEOUT_MS),
+                        ]).catch(async (error) => {
+                            await dialogHandler.checkAndHandleDialog(page, dialogTracker, context);
+                            throw error;
+                        });
+                    } else {
+                        await waitForReady;
+                    }
                 }
                 if (dialogTracker) {
                     const context = `${actionName.toLowerCase().replace(/\s+/g, '-')}-click`;
-                    await dialogHandler.waitAndHandleDialog(page, dialogTracker, context, 500);
+                    await dialogHandler.waitAndHandleDialog(page, dialogTracker, context, SHORT_WAIT_MS);
                 }
                 console.log(`${actionName} - Selector: ${selector}`);
                 return true;
@@ -41,6 +63,27 @@ export async function clickElement(
     return false;
 }
 
+/**
+ * Doi DOM san sang sau navigation/action, khong doi networkidle de giam flaky voi SPA/polling.
+ */
+export async function waitForDomReady(page: Page, timeout = UI_READY_TIMEOUT_MS): Promise<void> {
+    await page.waitForLoadState('domcontentloaded', { timeout }).catch(() => { });
+    await page.waitForFunction(() => {
+        return document.readyState === 'interactive' || document.readyState === 'complete';
+    }, undefined, { timeout }).catch(() => { });
+}
+
+/**
+ * Interval ngan cho cac loop da co condition rieng.
+ * Khong dung ham nay thay cho wait theo locator/response khi co condition cu the.
+ */
+export async function waitForConditionPoll(_page: Page, intervalMs = SHORT_WAIT_MS): Promise<void> {
+    await delay(intervalMs);
+}
+
+/**
+ * Dien input theo danh sach selector fallback, dung cho field co selector thay doi giua site.
+ */
 export async function fillInput(
     page: Page,
     selectors: string[],
@@ -67,6 +110,10 @@ export async function fillInput(
     throw new Error(`Could not find ${fieldName} input field`);
 }
 
+/**
+ * Tim locator visible dau tien trong nhieu locator fallback.
+ * Thuong dung khi popup/form co nhieu bien the UI.
+ */
 export async function firstVisibleLocator(
     locators: Locator[],
     timeoutMs: number,
@@ -98,6 +145,10 @@ export async function firstVisibleLocator(
     return null;
 }
 
+/**
+ * Dien tat ca input dang visible va loai trung lap theo vi tri/thuoc tinh DOM.
+ * Dung cho form co nhieu input cung muc dich nhung render khac nhau theo site.
+ */
 export async function fillVisibleInputs(
     locators: Locator[],
     value: string,

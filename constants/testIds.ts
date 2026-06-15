@@ -1,3 +1,6 @@
+/**
+ * Tao CSS selector theo data-testid de selector trong page object ngan va nhat quan.
+ */
 export const tid = (id: string) => `[data-testid="${id}"]`;
 
 export const testIds = {

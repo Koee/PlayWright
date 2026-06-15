@@ -7,6 +7,7 @@ import { ACTION_TIMEOUT_MS, NAVIGATION_TIMEOUT_MS, SERIAL_WORKERS } from './conf
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
+  // Test discovery declarations.
   testDir: './tests',
   testMatch: ['**/*.spec.ts'],
   /* Run tests in files in parallel */
@@ -19,6 +20,7 @@ export default defineConfig({
   workers: SERIAL_WORKERS,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
+    // HTML report output directory.
     ['html', { outputFolder: 'playwright-report', open: 'never' }],
     ['list']
   ],
@@ -32,6 +34,7 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
+    // Clipboard permission used by copy tests when reading saved QR/content.
     permissions: ['clipboard-read', 'clipboard-write'],
 
     /* Set timeout for each action */

@@ -4,29 +4,73 @@ import path from 'path';
 import fs from 'fs/promises';
 import { tid, testIds } from '../../constants/testIds';
 import { textRegexSelector, viRegex } from '../../constants/vietnamese';
+import * as dialogHandler from '../helpers/dialog-handler';
+import { waitForConditionPoll, waitForDomReady } from '../helpers/element-actions';
+import { SHORT_WAIT_MS, UI_READY_TIMEOUT_MS } from '../../config/test.config';
+import { blockingPageErrorRegex, isBlockingPageError, throwIfBlockingPageError, waitForPromiseOrBlockingPageError } from '../helpers/page-error';
 
-const invoiceErrorRegex = /Lỗi\s+(lấy|lưu)\s+đơn\s+hàng|Quota exceeded|Read requests|sheets\.googleapis\.com|project_number|Không\s+thể\s+tải\s+dữ\s+liệu|Internal server error/i;
+const invoiceErrorRegex = blockingPageErrorRegex;
 const invoiceContentRegex = /Hóa\s+đơn\s+chi\s+tiết|Hoá\s+đơn\s+chi\s+tiết|Thông\s+tin\s+đơn\s+hàng|Xác\s+nhận\s+đơn\s+hàng|Mã\s+đơn\s+hàng|Chi\s+tiết\s+đơn\s+hàng|Hoa\s+don\s+chi\s+tiet|Thong\s+tin\s+don\s+hang|Xac\s+nhan\s+don\s+hang|Ma\s+don\s+hang|Chi\s+tiet\s+don\s+hang/i;
 const invoiceDetailTitleRegex = viRegex.invoiceDetail;
 const invoiceMeaningfulContentRegex = /Mã\s+đơn\s+hàng|Chi\s+tiết\s+đơn\s+hàng|Thông\s+tin\s+đơn\s+hàng|Khách\s+hàng|Số\s+điện\s+thoại|Sản\s+phẩm|Tổng\s+tiền|Thành\s+tiền|Order|Customer|Phone|Product|Total/i;
 const invoiceFooterRegex = /CẢM\s+ƠN\s+QUÝ\s+KHÁCH|Cảm\s+ơn\s+quý\s+khách|Hẹn\s+gặp\s+lại/i;
 
+/**
+ * Page object phu trach invoice/order result sau checkout.
+ * Gom detection popup/page invoice, chup screenshot pass/fail va bat loi API tren man hinh.
+ */
 export class InvoicePage {
-    constructor(private readonly page: Page) { }
+    /**
+     * Khoi tao InvoicePage cho page dang checkout; dialog tracker giup capture popup native khi chup invoice.
+     */
+    constructor(
+        private readonly page: Page,
+        private readonly dialogTracker?: dialogHandler.DialogTracker
+    ) { }
 
     async checkEarlyPageErrors(testInfo: any) {
-        return checkEarlyPageErrors(this.page, testInfo);
+        return checkEarlyPageErrors(this.page, testInfo, this.dialogTracker);
     }
 
     async checkAndCaptureApiError(testInfo: any, stepName: string) {
-        return checkAndCaptureApiError(this.page, testInfo, stepName);
+        return checkAndCaptureApiError(this.page, testInfo, stepName, this.dialogTracker);
     }
 
     async captureInvoice(testInfo: any): Promise<string> {
-        return captureInvoice(this.page, testInfo);
+        return captureInvoice(this.page, testInfo, this.dialogTracker);
     }
 }
-    async function waitForInvoicePopup(page: Page, initialUrl?: string, timeoutMs = 7000) {
+    /**
+     * Doc text body an toan, co check dialog truoc/sau de khong nuot loi native popup.
+     */
+    async function readBodyText(page: Page, dialogTracker: dialogHandler.DialogTracker | undefined, context: string): Promise<string> {
+        if (dialogTracker) {
+            await dialogHandler.checkAndHandleDialog(page, dialogTracker, `${context}-precheck`);
+        }
+
+        const bodyText = await page.locator('body').innerText({ timeout: 1000 }).catch(async () => {
+            if (dialogTracker) {
+                await dialogHandler.checkAndHandleDialog(page, dialogTracker, `${context}-after-read-failed`);
+            }
+            return '';
+        });
+
+        if (dialogTracker) {
+            await dialogHandler.checkAndHandleDialog(page, dialogTracker, `${context}-postcheck`);
+        }
+
+        return bodyText;
+    }
+
+    /**
+     * Doi invoice xuat hien bang nhieu dau hieu: popup, dialog, URL moi hoac text invoice trong body.
+     */
+    async function waitForInvoicePopup(
+        page: Page,
+        initialUrl?: string,
+        timeoutMs = 7000,
+        dialogTracker?: dialogHandler.DialogTracker
+    ) {
         // Wait for invoice popup to appear within reasonable time
         const popupSelectors = [
             tid(testIds.invoicePopup),
@@ -41,6 +85,15 @@ export class InvoicePage {
 
         const deadline = Date.now() + timeoutMs;
         while (Date.now() < deadline) {
+            await throwIfBlockingPageError(page, 'invoice-popup-wait', [
+                page.getByRole('dialog'),
+                page.locator('body'),
+            ]);
+
+            if (dialogTracker) {
+                await dialogHandler.waitAndHandleDialog(page, dialogTracker, 'invoice-popup-wait', 100);
+            }
+
             for (const selector of popupSelectors) {
                 try {
                     const locator = page.locator(selector).first();
@@ -60,18 +113,26 @@ export class InvoicePage {
                 return true;
             }
 
-            const bodyText = await page.locator('body').innerText({ timeout: 250 }).catch(() => '');
+            const bodyText = await page.locator('body').innerText({ timeout: 250 }).catch(async () => {
+                if (dialogTracker) {
+                    await dialogHandler.checkAndHandleDialog(page, dialogTracker, 'invoice-popup-body-read');
+                }
+                return '';
+            });
             if (invoiceContentRegex.test(bodyText)) {
                 console.log('OK Invoice content detected in page body');
                 return true;
             }
 
-            await page.waitForTimeout(500).catch(() => { });
+            await waitForConditionPoll(page, SHORT_WAIT_MS);
         }
 
         return false;
     }
 
+    /**
+     * Neu co nut in/xem chi tiet hoa don thi mo popup/iframe chi tiet truoc khi chup.
+     */
     async function openInvoiceDetailPopupIfAvailable(page: Page): Promise<boolean> {
         const hasVisibleDetailIframe = async () => page.evaluate(() => {
             return Array.from(document.querySelectorAll('iframe')).some((frame) => {
@@ -105,13 +166,19 @@ export class InvoicePage {
             }
             throw error;
         }
-        await page.waitForTimeout(1000);
-        await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => { });
+        await waitForDomReady(page);
         console.log('Invoice detail button clicked.');
         return true;
     }
 
-    async function findInvoiceCapturePage(page: Page, initialUrl: string): Promise<{ page: Page; invoiceFound: boolean }> {
+    /**
+     * Tim page/popup dang chua invoice, ke ca truong hop invoice mo ra tab/page moi.
+     */
+    async function findInvoiceCapturePage(
+        page: Page,
+        initialUrl: string,
+        dialogTracker?: dialogHandler.DialogTracker
+    ): Promise<{ page: Page; invoiceFound: boolean }> {
         const context = page.context();
 
         const candidatePages = context.pages()
@@ -120,7 +187,7 @@ export class InvoicePage {
 
         for (const candidate of candidatePages) {
             await candidate.waitForLoadState('domcontentloaded', { timeout: 2000 }).catch(() => { });
-            if (await waitForInvoicePopup(candidate, candidate === page ? initialUrl : undefined)) {
+            if (await waitForInvoicePopup(candidate, candidate === page ? initialUrl : undefined, 7000, candidate === page ? dialogTracker : undefined)) {
                 return { page: candidate, invoiceFound: true };
             }
         }
@@ -128,7 +195,7 @@ export class InvoicePage {
         const newPage = await context.waitForEvent('page', { timeout: 1000 }).catch(() => null);
         if (newPage && !newPage.isClosed()) {
             await newPage.waitForLoadState('domcontentloaded', { timeout: 3000 }).catch(() => { });
-            await newPage.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => { });
+            await waitForDomReady(newPage);
             if (await waitForInvoicePopup(newPage)) {
                 return { page: newPage, invoiceFound: true };
             }
@@ -138,6 +205,9 @@ export class InvoicePage {
         return { page, invoiceFound: false };
     }
 
+    /**
+     * Tim container invoice detail tot nhat dua tren title/content/iframe va kich thuoc hien thi.
+     */
     async function findInvoiceDetailPopup(page: Page): Promise<Locator | null> {
         const marker = await page.evaluate(({ titlePattern, contentPattern }) => {
             const titleRegex = new RegExp(titlePattern, 'i');
@@ -274,6 +344,9 @@ export class InvoicePage {
         return null;
     }
 
+    /**
+     * Chup trang thai invoice khong hop le de tranh pass screenshot vao container sai.
+     */
     async function captureInvalidInvoiceTarget(
         locator: Locator,
         testInfo: any,
@@ -296,6 +369,9 @@ export class InvoicePage {
         return [popupText, invoiceFrame?.text || ''].join('\n');
     }
 
+    /**
+     * Xac nhan target chup pass that su co noi dung invoice co y nghia.
+     */
     async function validateInvoicePassTarget(locator: Locator, testInfo: any): Promise<boolean> {
         const targetText = await getInvoiceTargetText(locator);
         if (invoiceErrorRegex.test(targetText)) {
@@ -311,6 +387,9 @@ export class InvoicePage {
         return true;
     }
 
+    /**
+     * Scroll popup invoice toi footer/cam on de chup du noi dung hoa don dai.
+     */
     async function scrollInvoicePopupToFooter(popup: Locator): Promise<boolean> {
         for (let attempt = 0; attempt < 8; attempt++) {
             const hasFooter = await popup.evaluate((element, footerPattern) => {
@@ -360,7 +439,7 @@ export class InvoicePage {
                 return true;
             }
 
-            await popup.page().waitForTimeout(250).catch(() => { });
+            await waitForConditionPoll(popup.page(), 250);
         }
 
         return false;
@@ -605,13 +684,16 @@ export class InvoicePage {
         }
     }
 
+    /**
+     * Thu chup invoice detail popup bang target locator tot nhat.
+     */
     async function captureInvoiceDetailPopup(page: Page, testInfo: any, passScreenshotPath: string): Promise<string | null> {
         const popup = await findInvoiceDetailPopup(page);
         if (!popup) {
             return null;
         }
 
-        await page.waitForTimeout(500);
+        await popup.waitFor({ state: 'visible', timeout: SHORT_WAIT_MS }).catch(() => { });
         const popupText = await getInvoiceTargetText(popup);
         const invoiceFrame = await findInvoiceFrameInPopup(popup);
         const combinedText = [popupText, invoiceFrame?.text || ''].join('\n');
@@ -649,6 +731,9 @@ export class InvoicePage {
         return targetPath;
     }
 
+    /**
+     * Thu chup invoice nam trong iframe khi popup render noi dung qua frame.
+     */
     async function captureInvoiceDetailFrame(page: Page, testInfo: any, screenshotPath: string): Promise<string | null> {
         const frames = page.frames().slice().reverse();
 
@@ -749,6 +834,9 @@ export class InvoicePage {
         return null;
     }
 
+    /**
+     * Phat hien va chup loi invoice/API hien tren page sau khi dat hang.
+     */
     async function captureInvoiceErrorState(page: Page, testInfo: any) {
         const invoicePopup = await findInvoiceDetailPopup(page);
         if (invoicePopup) {
@@ -800,19 +888,17 @@ export class InvoicePage {
         return false;
     }
 
+    /**
+     * Xu ly/suppress print dialog de automation khong bi chan khi invoice goi window.print.
+     */
     async function handlePrintDialog(page: Page) {
-        // Try to wait a bit for print dialog to show, then press Escape to dismiss
+        // Try to catch a print popup, then press Escape to dismiss DOM/browser fallback UI.
         try {
-            await page.waitForTimeout(1000);
-            // Listen for new pages (popups) that might be the print dialog
-            page.on('popup', async (popup) => {
-                try {
-                    await popup.close();
-                    console.log('OK Print dialog popup closed');
-                } catch {
-                    // ignore if already closed
-                }
-            });
+            const printPopup = await page.waitForEvent('popup', { timeout: 1000 }).catch(() => null);
+            if (printPopup) {
+                await printPopup.close().catch(() => { });
+                console.log('OK Print dialog popup closed');
+            }
             // Attempt to dismiss any print dialog if it's a DOM-based one
             const printCloseBtn = page
                 .locator('button, [role="button"], button[aria-label="Close"]')
@@ -887,6 +973,9 @@ export class InvoicePage {
         }
     }
 
+    /**
+     * Fallback chup container lon nhat co text invoice khi popup/iframe detector khong bat duoc.
+     */
     async function captureLargestInvoiceContainer(page: Page, testInfo: any, screenshotPath: string): Promise<string | null> {
         const candidates = page
             .locator('div, section, article, main, [role="dialog"]')
@@ -935,6 +1024,9 @@ export class InvoicePage {
         return screenshotPath;
     }
 
+    /**
+     * Chup trang thai dang xu ly neu invoice/order bi stuck o processing.
+     */
     async function captureProcessingState(page: Page, testInfo: any, context: string): Promise<string | null> {
         if (page.isClosed()) {
             return null;
@@ -978,6 +1070,9 @@ export class InvoicePage {
         }
     }
 
+    /**
+     * Flow chup invoice pass: thu popup detail, iframe, container lon, roi moi fallback co kiem tra loi.
+     */
     async function captureInvoiceScreenshot(page: Page, testInfo: any) {
         const screenshotDir = path.join('test-results', 'pass-screenshots');
         // Use a friendly filename with timestamp to avoid collisions
@@ -1023,8 +1118,7 @@ export class InvoicePage {
             try {
                 const popupLocator = page.locator(selector).first();
                 if (await popupLocator.isVisible({ timeout: 3000 }).catch(() => false)) {
-                    // Wait for any animations to finish
-                    await page.waitForTimeout(500);
+                    await popupLocator.waitFor({ state: 'visible', timeout: SHORT_WAIT_MS }).catch(() => { });
 
                     // Try to take a screenshot of just the popup element
                     try {
@@ -1124,14 +1218,21 @@ export class InvoicePage {
         return '';
     }
 
-    async function checkEarlyPageErrors(page: Page, testInfo: any) {
+    /**
+     * Check loi API/page ngay sau khi load homepage de dung flow som neu site da loi.
+     */
+    async function checkEarlyPageErrors(
+        page: Page,
+        testInfo: any,
+        dialogTracker?: dialogHandler.DialogTracker
+    ) {
         try {
-            const errorText = await page.textContent('body').catch(() => '');
+            const errorText = await readBodyText(page, dialogTracker, 'early-page-error-check');
             if (errorText && invoiceErrorRegex.test(errorText)) {
                 console.warn(`WARN Early page error detected: ${errorText.slice(0, 200)}`);
                 const errorPath = path.join('test-results', 'err-screenshots', `${testInfo.project.name}-early-error.png`);
                 await fs.mkdir(path.dirname(errorPath), { recursive: true });
-                await page.screenshot({ path: errorPath, fullPage: true });
+                await page.screenshot({ path: errorPath, fullPage: false });
                 return errorPath;
             }
         } catch (e) {
@@ -1140,15 +1241,23 @@ export class InvoicePage {
         return null;
     }
 
-    async function checkAndCaptureApiError(page: Page, testInfo: any, stepName: string) {
+    /**
+     * Check loi API sau tung step checkout va chup screenshot tai step bi loi.
+     */
+    async function checkAndCaptureApiError(
+        page: Page,
+        testInfo: any,
+        stepName: string,
+        dialogTracker?: dialogHandler.DialogTracker
+    ) {
         try {
             // Check for API error on current page
-            const pageText = await page.textContent('body').catch(() => '');
+            const pageText = await readBodyText(page, dialogTracker, `api-error-check-${stepName}`);
             if (pageText && invoiceErrorRegex.test(pageText)) {
                 console.warn(`WARN API error detected at step "${stepName}"`);
                 const errorPath = path.join('test-results', 'err-screenshots', `${testInfo.project.name}-api-error-${stepName}.png`);
                 await fs.mkdir(path.dirname(errorPath), { recursive: true });
-                await page.screenshot({ path: errorPath, fullPage: true });
+                await page.screenshot({ path: errorPath, fullPage: false });
                 console.log(`WARN API error screenshot saved: ${errorPath}`);
                 return errorPath;
             }
@@ -1158,24 +1267,50 @@ export class InvoicePage {
         return null;
     }
 
-    async function captureInvoice(page: Page, testInfo: any): Promise<string> {
+    /**
+     * Flow tong de tim invoice sau complete order, validate noi dung va tra ve screenshot pass.
+     */
+    async function captureInvoice(
+        page: Page,
+        testInfo: any,
+        dialogTracker?: dialogHandler.DialogTracker
+    ): Promise<string> {
         // Pre-check: if page is already closed, skip everything
         if (page.isClosed()) {
             throw new Error('Page is closed before invoice capture, cannot capture invoice');
         }
 
+        if (dialogTracker) {
+            await dialogHandler.checkAndHandleDialog(page, dialogTracker, 'invoice-capture-precheck');
+        }
+
         console.log('WAIT Waiting for invoice popup to appear (up to 7 seconds)...');
         const initialUrl = page.url();
 
-        // Wait for page to settle first instead of fixed timeout
+        // Wait for page to settle first with DOM readiness and dialog checks.
         try {
-            await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => { });
-        } catch {
-            // continue anyway
+            const readyWait = waitForPromiseOrBlockingPageError(
+                page,
+                waitForDomReady(page, UI_READY_TIMEOUT_MS).catch(() => { }),
+                'invoice-ready-wait',
+                UI_READY_TIMEOUT_MS,
+                [page.getByRole('dialog'), page.locator('body')],
+                dialogTracker
+            );
+            if (dialogTracker) {
+                await readyWait;
+            } else {
+                await readyWait;
+            }
+        } catch (error) {
+            if (isBlockingPageError(error)) {
+                throw error;
+            }
+            // continue when only DOM-ready settling failed; invoice detection below is authoritative.
         }
 
         try {
-            const invoiceCapture = await findInvoiceCapturePage(page, initialUrl);
+            const invoiceCapture = await findInvoiceCapturePage(page, initialUrl, dialogTracker);
             const invoicePage = invoiceCapture.page;
 
             if (invoicePage !== page) {
@@ -1184,9 +1319,12 @@ export class InvoicePage {
 
             // Reuse the detection result from findInvoiceCapturePage to avoid duplicate waits/logs.
             const invoiceFound = invoiceCapture.invoiceFound
-                || await waitForInvoicePopup(invoicePage, invoicePage === page ? initialUrl : undefined, 1000);
+                || await waitForInvoicePopup(invoicePage, invoicePage === page ? initialUrl : undefined, 1000, invoicePage === page ? dialogTracker : undefined);
 
             if (invoiceFound) {
+                if (invoicePage === page && dialogTracker) {
+                    await dialogHandler.checkAndHandleDialog(page, dialogTracker, 'invoice-found');
+                }
                 await openInvoiceDetailPopupIfAvailable(invoicePage);
                 // Handle any print dialog that might appear
                 await handlePrintDialog(invoicePage);
@@ -1243,7 +1381,7 @@ export class InvoicePage {
                 if (!page.isClosed()) {
                     try {
                         await fs.mkdir(path.dirname(errorPath), { recursive: true });
-                        await page.screenshot({ path: errorPath, fullPage: true });
+                        await page.screenshot({ path: errorPath, fullPage: false });
                         console.log(`Error screenshot saved: ${errorPath}`);
                     } catch (screenshotError) {
                         console.warn(`WARN Could not take invoice error screenshot: ${(screenshotError as Error).message}`);
