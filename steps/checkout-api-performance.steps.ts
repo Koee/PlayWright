@@ -14,6 +14,7 @@ import {
 } from '../config/test.config';
 
 export type CapturedCheckoutOrderRequest = {
+    projectName: string;
     url: string;
     method: string;
     headers: Record<string, string>;
@@ -112,11 +113,14 @@ function safeFilePart(value: string) {
 function buildApiPerformanceCustomer(orderNo: number): CheckoutCustomer & { address: string } {
     const phoneSequence = String(orderNo).padStart(6, '0');
     const randomPart = String(randomInt(0, 10)).padStart(1, '0');
+    const namePrefix = process.env.CHECKOUT_API_CUSTOMER_NAME_PREFIX || 'Performance Test Customer';
+    const phonePrefix = (process.env.CHECKOUT_API_CUSTOMER_PHONE_PREFIX || '099').replace(/\D/g, '').slice(0, 9) || '099';
+    const address = process.env.CHECKOUT_API_CUSTOMER_ADDRESS || 'Performance Test Address';
 
     return {
-        name: `Nguyen van A PerfT  ${orderNo}`,
-        phone: `099${randomPart}${phoneSequence}`.slice(0, 10),
-        address: 'Performance Address',
+        name: `${namePrefix} ${orderNo}`,
+        phone: `${phonePrefix}${randomPart}${phoneSequence}`.slice(0, 10),
+        address,
     };
 }
 
@@ -822,6 +826,7 @@ export async function detectCheckoutOrderApiRequest(
     console.log(`Detected checkout order API: ${request.method()} ${request.url()}`);
 
     return {
+        projectName: websiteName,
         url: request.url(),
         method: request.method(),
         headers,
@@ -1128,6 +1133,7 @@ export async function exportCheckoutOrderApiTemplate(
     const targetPath = path.resolve(process.cwd(), outputPath);
     await fs.mkdir(path.dirname(targetPath), { recursive: true });
     await fs.writeFile(targetPath, JSON.stringify({
+        projectName: captured.projectName,
         url: captured.url,
         method: captured.method,
         headers: sanitizeExportedTemplateHeaders(captured.headers, captured.auth),

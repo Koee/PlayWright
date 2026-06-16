@@ -45,12 +45,12 @@ declare module 'k6' {
 declare module 'k6/metrics' {
     export class Counter {
         constructor(name: string);
-        add(value: number): void;
+        add(value: number, tags?: Record<string, string>): void;
     }
 
     export class Rate {
         constructor(name: string);
-        add(value: boolean): void;
+        add(value: boolean, tags?: Record<string, string>): void;
     }
 }
 

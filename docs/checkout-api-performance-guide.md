@@ -14,10 +14,10 @@ Chay flow guest/no-login dung khuyen nghi:
 
 ```bash
 npx playwright test tests/api/checkout/checkout-api-template.spec.ts --grep "@api-template-guest" --project=si
-npm run k6:checkout:guest:json
+node scripts/run-k6-checkout.js --mode guest --project si --json
 ```
 
-Neu chay project khac `si`, truyen project cho runner:
+Neu chay project khac `si`, truyen dung project cho ca buoc Playwright template va k6 runner:
 
 ```bash
 node scripts/run-k6-checkout.js --mode guest --project inter --json
@@ -29,6 +29,8 @@ Hoac dung npm script va truyen bien moi truong:
 $env:K6_PROJECT_NAME='inter'
 npm run k6:checkout:guest:json
 ```
+
+Runner k6 khong con mac dinh chay `si`. Neu khong truyen `--project`, khong set `K6_PROJECT_NAME`, va trong `test-data/k6` dang co nhieu template, runner se dung lai va yeu cau chon project/template ro rang. Cach nay tranh viec vua prepare template cho `hangthietyeu` nhung k6 lai replay nham template `si`.
 
 Mac dinh k6 doc so don/rate tu `config/test.config.ts` qua `scripts/run-k6-checkout.js`:
 
@@ -59,11 +61,25 @@ test-data/k6/si-guest-checkout-order-api-template.json
 Lenh k6 se doc template trong `test-data/k6` va ban tai API hang loat, khong mo UI. Report k6 nam o:
 
 ```text
-test-results/k6/checkout-order-load-summary.json
-test-results/k6/checkout-order-load-metrics.json
-test-results/k6/checkout-order-load-error-report.json
-test-results/k6/checkout-order-load-error-report.md
+test-results/k6/<project>-<mode>-checkout-order-load-report.md
+test-results/k6/<project>-<mode>-checkout-order-load-report.json
+test-results/k6/<project>-<mode>-checkout-order-load-summary.json
+test-results/k6/<project>-<mode>-checkout-order-load-metrics.json
+test-results/k6/<project>-<mode>-checkout-order-load-error-report.json
+test-results/k6/<project>-<mode>-checkout-order-load-error-report.md
 ```
+
+Nen doc theo thu tu:
+
+1. `<project>-<mode>-checkout-order-load-report.md`: report tong hop de tester doc nhanh. File nay gom config, endpoint, pass/fail, so case thanh cong/that bai, breakdown nhom loi, threshold fail, p95, dropped iterations.
+2. `<project>-<mode>-checkout-order-load-report.json`: cung noi dung voi file Markdown nhung de tool/CI doc.
+3. `<project>-<mode>-checkout-order-load-summary.json`: raw summary cua k6, day du metric va threshold. File nay huu ich khi can debug sau hon.
+4. `<project>-<mode>-checkout-order-load-metrics.json`: stream metric tung event/request khi chay voi `--json`. File nay lon hon, dung de doi soat tag nhu `order_code`.
+5. `<project>-<mode>-checkout-order-load-error-report.*`: alias cu cua report tong hop, giu lai de khong pha workflow dang co.
+
+Runner van ghi them alias cu `checkout-order-load-report.*`, `checkout-order-load-summary.json`, va `checkout-order-load-error-report.*` cho lan chay gan nhat. Khi so sanh nhieu project, dung file co prefix project de tranh doc nham.
+
+Thu muc `test-results/k6-dist` khong phai report. Day la output build JavaScript tam thoi tu source TypeScript trong `performance/k6` de k6 co the chay. Neu can doc ket qua test, uu tien `test-results/k6`; chi xem `k6-dist` khi debug viec build/chay script.
 
 Neu muon chay guest voi tham so rieng lon hon config tren PowerShell:
 
@@ -71,7 +87,7 @@ Neu muon chay guest voi tham so rieng lon hon config tren PowerShell:
 $env:K6_TOTAL_ORDERS='200'
 $env:K6_RATE_PER_SECOND='20'
 $env:K6_MAX_VUS='50'
-npm run k6:checkout:guest:json
+node scripts/run-k6-checkout.js --mode guest --project si --json
 ```
 
 Neu can chi ro template:
@@ -248,6 +264,14 @@ Luu y quan trong:
 - Khi replay `insertOrder`, script se tao `orderCode` moi dung format UI: `ONLINE-...-ddMMyy-HHmmss-XXXXXX`.
 - Neu payload co `orderData.products`, script se ep `skipDetail=false` de backend ghi dong tuong ung vao sheet `Order_details`.
 - File metrics JSON cua k6 co tag `order_code` de doi soat ma don da ban tai.
+- k6 report da tach case thanh cong/that bai:
+  - `resultBreakdown.success`: request tao don da duoc verify thanh cong.
+  - `resultBreakdown.failure`: request that bai.
+  - `resultBreakdown.categories.verifiedCreated`: thanh cong vi response co bang chung tao don.
+  - `resultBreakdown.categories.http4xx`: loi client/auth/payload/data validation.
+  - `resultBreakdown.categories.http5xx`: loi server.
+  - `resultBreakdown.categories.networkError`: loi network/chua nhan duoc HTTP status hop le.
+  - `resultBreakdown.categories.validationFailed`: HTTP co the 2xx nhung body khong chung minh don da tao, `success=false`, `status=failed`, hoac thieu order id/evidence.
 
 ## 3. Huong Dan Chinh Sua, Them Moi O Cac Cho
 
@@ -341,16 +365,20 @@ Y nghia loi threshold thuong gap:
 Khi k6 fail do loi he thong/API, doc nhanh file:
 
 ```text
-test-results/k6/checkout-order-load-error-report.md
+test-results/k6/<project>-<mode>-checkout-order-load-report.md
 ```
 
 File nay tom tat:
 
+- So case thanh cong/that bai.
+- Breakdown theo nhom `verified_created`, `http_4xx`, `http_5xx`, `network_error`, `validation_failed`.
 - So request HTTP 2xx/4xx/5xx.
 - Network errors.
 - Dropped iterations.
 - Threshold nao fail.
 - p95 response time hien tai.
+
+File cu `test-results/k6/checkout-order-load-error-report.md` van duoc ghi voi cung noi dung cua lan chay gan nhat. Neu chi can mot file de gui cho team, dung file co prefix project, vi du `si-guest-checkout-order-load-report.md`.
 
 Neu k6 fail ngay tu dau vi khong tim thay template, hay chay lai lenh Playwright template truoc:
 
@@ -422,6 +450,15 @@ Nguyen tac:
 
 - Chi replace field khach hang nhu phone, customerName, recipientName, address.
 - Khong replace product name, product id, SKU, item, goods, cart.
+- Data khach hang mac dinh khong con hardcode theo ten that. Co the cau hinh trong `test-data/env/.env`:
+
+```env
+CHECKOUT_API_CUSTOMER_NAME_PREFIX=Performance Test Customer
+CHECKOUT_API_CUSTOMER_PHONE_PREFIX=099
+CHECKOUT_API_CUSTOMER_ADDRESS=Performance Test Address
+```
+
+- `scripts/run-k6-checkout.js` tu map cac bien tren sang `K6_CUSTOMER_NAME_PREFIX`, `K6_CUSTOMER_PHONE_PREFIX`, va `K6_CUSTOMER_ADDRESS`. Neu muon override rieng cho k6 thi set truc tiep cac bien `K6_CUSTOMER_*`.
 - Neu thay ten san pham bi doi thanh ten khach hang, kiem tra cac ham:
   - `isProductLikeKey`
   - `isCustomerNameKey`

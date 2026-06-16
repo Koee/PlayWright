@@ -32,12 +32,11 @@ function readArgValue(name, fallback) {
 }
 
 const mode = readArgValue('--mode', 'guest');
-const projectName = readArgValue('--project', process.env.K6_PROJECT_NAME || 'si');
 const writeJson = hasArg('--json');
 const smoke = hasArg('--smoke');
 const dryRun = hasArg('--dry-run');
 const showVersion = hasArg('--version');
-const outputPath = readArgValue('--out', 'test-results/k6/checkout-order-load-metrics.json');
+const explicitOutputPath = readArgValue('--out', undefined);
 const totalOrders = smoke ? '1' : readNumberExport('API_PERFORMANCE_CHECKOUT_ORDER_COUNT');
 const ratePerSecond = readNumberExport('API_PERFORMANCE_CHECKOUT_RATE_PER_SECOND');
 const defaultP95ThresholdMs = smoke ? '15000' : '3000';
@@ -47,7 +46,85 @@ const defaultMaxVus = String(
         Number(ratePerSecond) * (Math.ceil(Number(defaultP95ThresholdMs) / 1000) + 3)
     )
 );
-const templatePath = process.env.K6_CHECKOUT_TEMPLATE_PATH || path.join('test-data', 'k6', `${projectName}-${mode}-checkout-order-api-template.json`);
+const explicitTemplatePath = process.env.K6_CHECKOUT_TEMPLATE_PATH || '';
+
+function listCheckoutTemplates(checkoutMode) {
+    const templateDir = path.join(rootDir, 'test-data', 'k6');
+    if (!fs.existsSync(templateDir)) {
+        return [];
+    }
+
+    return fs.readdirSync(templateDir)
+        .filter(fileName => fileName.endsWith(`-${checkoutMode}-checkout-order-api-template.json`))
+        .map(fileName => path.join('test-data', 'k6', fileName));
+}
+
+function projectNameFromTemplatePath(filePath, checkoutMode) {
+    const fileName = path.basename(filePath);
+    const suffix = `-${checkoutMode}-checkout-order-api-template.json`;
+    if (!fileName.endsWith(suffix)) {
+        return undefined;
+    }
+
+    return fileName.slice(0, -suffix.length) || undefined;
+}
+
+function resolveProjectAndTemplate() {
+    const argProject = readArgValue('--project', undefined);
+    const envProject = process.env.K6_PROJECT_NAME;
+    const projectName = argProject || envProject;
+
+    if (explicitTemplatePath) {
+        return {
+            projectName: projectName || projectNameFromTemplatePath(explicitTemplatePath, mode) || 'custom-template',
+            templatePath: explicitTemplatePath,
+        };
+    }
+
+    if (projectName) {
+        return {
+            projectName,
+            templatePath: path.join('test-data', 'k6', `${projectName}-${mode}-checkout-order-api-template.json`),
+        };
+    }
+
+    const templates = listCheckoutTemplates(mode);
+    if (templates.length === 1) {
+        return {
+            projectName: projectNameFromTemplatePath(templates[0], mode) || 'custom-template',
+            templatePath: templates[0],
+        };
+    }
+
+    if (templates.length > 1) {
+        console.error([
+            `Multiple ${mode} k6 checkout templates were found:`,
+            ...templates.map(template => `- ${template}`),
+            '',
+            'Please choose one explicitly, for example:',
+            `node scripts/run-k6-checkout.js --mode ${mode} --project ${projectNameFromTemplatePath(templates[0], mode) || '<project>'} --json`,
+            '',
+            'Or set K6_CHECKOUT_TEMPLATE_PATH to the template you want to replay.',
+        ].join('\n'));
+        process.exit(1);
+    }
+
+    console.error([
+        `No ${mode} k6 checkout template was found in test-data/k6.`,
+        '',
+        'Generate one first with Playwright, for example:',
+        `npx playwright test tests/api/checkout/checkout-api-template.spec.ts --grep "@api-template-${mode}" --project=<project>`,
+        '',
+        'Then run k6 with the same project:',
+        `node scripts/run-k6-checkout.js --mode ${mode} --project=<project> --json`,
+    ].join('\n'));
+    process.exit(1);
+}
+
+const { projectName, templatePath } = showVersion
+    ? { projectName: process.env.K6_PROJECT_NAME || 'version-check', templatePath: '' }
+    : resolveProjectAndTemplate();
+const outputPath = explicitOutputPath || path.join('test-results', 'k6', `${projectName}-${mode}-checkout-order-load-metrics.json`);
 
 function resolveProjectPath(filePath) {
     if (path.isAbsolute(filePath)) {
@@ -113,6 +190,9 @@ const env = {
     K6_ORDER_ID_PATH: process.env.K6_ORDER_ID_PATH || process.env.CHECKOUT_API_ORDER_ID_PATH || '',
     K6_SUCCESS_PATH: process.env.K6_SUCCESS_PATH || process.env.CHECKOUT_API_SUCCESS_PATH || 'success',
     K6_STATUS_PATH: process.env.K6_STATUS_PATH || process.env.CHECKOUT_API_STATUS_PATH || 'status',
+    K6_CUSTOMER_NAME_PREFIX: process.env.K6_CUSTOMER_NAME_PREFIX || process.env.CHECKOUT_API_CUSTOMER_NAME_PREFIX || '',
+    K6_CUSTOMER_PHONE_PREFIX: process.env.K6_CUSTOMER_PHONE_PREFIX || process.env.CHECKOUT_API_CUSTOMER_PHONE_PREFIX || '',
+    K6_CUSTOMER_ADDRESS: process.env.K6_CUSTOMER_ADDRESS || process.env.CHECKOUT_API_CUSTOMER_ADDRESS || '',
 };
 
 function compileK6Typescript() {
@@ -164,6 +244,7 @@ console.log([
     `K6_RATE_PER_SECOND: ${env.K6_RATE_PER_SECOND}`,
     `K6_MAX_VUS: ${env.K6_MAX_VUS}`,
     `K6_P95_THRESHOLD_MS: ${env.K6_P95_THRESHOLD_MS}`,
+    `K6_OUTPUT_PATH: ${outputPath}`,
 ].join('\n'));
 
 if (dryRun) {

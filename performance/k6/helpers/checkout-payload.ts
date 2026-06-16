@@ -193,11 +193,14 @@ function enableOrderDetailsWhenProductsExist(value) {
 export function buildCustomer(orderNo, vuNumber) {
     const sequence = String(orderNo).padStart(6, '0');
     const vuPart = String(vuNumber % 10);
+    const namePrefix = __ENV.K6_CUSTOMER_NAME_PREFIX || 'Performance Test Customer';
+    const phonePrefix = (__ENV.K6_CUSTOMER_PHONE_PREFIX || '098').replace(/\D/g, '').slice(0, 9) || '098';
+    const address = __ENV.K6_CUSTOMER_ADDRESS || 'Performance Test Address';
 
     return {
-        name: `Nguyễn Văn A - PerforTest ${orderNo}`,
-        phone: `098${vuPart}${sequence}`.slice(0, 10),
-        address: 'Performance Address',
+        name: `${namePrefix} ${orderNo}`,
+        phone: `${phonePrefix}${vuPart}${sequence}`.slice(0, 10),
+        address,
     };
 }
 
