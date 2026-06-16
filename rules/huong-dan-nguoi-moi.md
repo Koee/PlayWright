@@ -93,7 +93,7 @@ Doc:
 config/projects.config.ts
 config/env.config.ts
 config/test.config.ts
-test-data/env/.env.example
+test-data/env/.env
 ```
 
 Can nam:
@@ -182,10 +182,6 @@ npm install
 ```
 
 Tao env local tu file mau:
-
-```bash
-copy test-data\env\.env.example test-data\env\.env
-```
 
 Kiem tra Playwright co nhan test khong:
 
@@ -440,15 +436,13 @@ Sua:
 
 ```text
 config/projects.config.ts
-test-data/env/.env.example
 test-data/env/.env
 ```
 
 Can lam:
 
 - Them project name va env key vao `SITE_PROJECTS`.
-- Them bien `BASE_URL_*` vao `.env.example`.
-- Them gia tri that vao `.env` local.
+- Them bien `BASE_URL_*` va gia tri that vao `.env` local.
 - Chay `npm run test:list`.
 
 ### Them selector/test id/message dung chung
@@ -616,7 +610,7 @@ Kiem tra:
 Kiem tra:
 
 - Da tao `test-data/env/.env` chua.
-- Bien `BASE_URL_*` co trong `.env.example` va `.env` chua.
+- Bien `BASE_URL_*` co trong `.env` chua.
 
 ### Test flaky vi cho UI
 

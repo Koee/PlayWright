@@ -17,6 +17,7 @@ import {
 } from './helpers/checkout-summary.js';
 
 interface CheckoutTemplate {
+    projectName?: string;
     method?: string;
     url: string;
     headers?: Record<string, string>;
@@ -25,11 +26,12 @@ interface CheckoutTemplate {
 }
 
 const checkoutMode = __ENV.K6_CHECKOUT_MODE || 'guest';
-const projectName = __ENV.K6_PROJECT_NAME || 'si';
+const requestedProjectName = __ENV.K6_PROJECT_NAME || 'unknown-project';
 const templatePath = resolveTemplatePath(
-    __ENV.K6_CHECKOUT_TEMPLATE_PATH || `test-data/k6/${projectName}-${checkoutMode}-checkout-order-api-template.json`
+    __ENV.K6_CHECKOUT_TEMPLATE_PATH || `test-data/k6/${requestedProjectName}-${checkoutMode}-checkout-order-api-template.json`
 );
 const template = JSON.parse(open(templatePath).replace(/^\uFEFF/, ''));
+const projectName = __ENV.K6_PROJECT_NAME || template.projectName || requestedProjectName;
 if (isQrOrPaymentOnlyTemplate(template)) {
     throw new Error(`Template ${templatePath} points to QR/payment API, not checkout order API. Regenerate it with Playwright @api-template-${checkoutMode}.`);
 }
@@ -89,6 +91,14 @@ const http2xxResponses = new Counter('checkout_http_2xx');
 const http4xxResponses = new Counter('checkout_http_4xx');
 const http5xxResponses = new Counter('checkout_http_5xx');
 const networkErrors = new Counter('checkout_network_errors');
+const orderResults = new Counter('checkout_order_results');
+const successfulOrderCases = new Counter('checkout_order_success');
+const failedOrderCases = new Counter('checkout_order_failure');
+const verifiedCreatedCases = new Counter('checkout_order_verified_created');
+const http4xxFailureCases = new Counter('checkout_order_http_4xx_failure');
+const http5xxFailureCases = new Counter('checkout_order_http_5xx_failure');
+const networkFailureCases = new Counter('checkout_order_network_failure');
+const validationFailureCases = new Counter('checkout_order_validation_failure');
 
 export default function () {
     const orderNo = exec.scenario.iterationInTest + 1;
@@ -127,6 +137,40 @@ export default function () {
         console.error(`Checkout order ${orderNo} was not verified: ${validation.reason}`);
     }
 
+    const result = validation.ok && ok ? 'success' : 'failure';
+    let category = 'validation_failed';
+    if (validation.ok && ok) {
+        category = 'verified_created';
+    } else if (response.status >= 400 && response.status < 500) {
+        category = 'http_4xx';
+    } else if (response.status >= 500) {
+        category = 'http_5xx';
+    } else if (response.status <= 0) {
+        category = 'network_error';
+    }
+
+    orderResults.add(1, {
+        result,
+        category,
+        mode: checkoutMode,
+        project: projectName,
+    });
+    if (result === 'success') {
+        successfulOrderCases.add(1);
+    } else {
+        failedOrderCases.add(1);
+    }
+    if (category === 'verified_created') {
+        verifiedCreatedCases.add(1);
+    } else if (category === 'http_4xx') {
+        http4xxFailureCases.add(1);
+    } else if (category === 'http_5xx') {
+        http5xxFailureCases.add(1);
+    } else if (category === 'network_error') {
+        networkFailureCases.add(1);
+    } else {
+        validationFailureCases.add(1);
+    }
     createdOrders.add(validation.ok ? 1 : 0);
     failedOrders.add(!validation.ok || !ok);
 }
@@ -136,6 +180,10 @@ export function handleSummary(data) {
     const droppedIterations = data.metrics.dropped_iterations?.values?.count || 0;
     const p95Duration = data.metrics.http_req_duration?.values?.['p(95)'];
     const errorReport = buildErrorReport(data, runConfig);
+    const reportBaseName = `${projectName}-${checkoutMode}-checkout-order-load`;
+    const rawSummary = JSON.stringify(data, null, 2);
+    const reportJson = JSON.stringify(errorReport, null, 2);
+    const reportMarkdown = buildMarkdownReport(errorReport);
 
     return {
         stdout: JSON.stringify({
@@ -150,12 +198,21 @@ export function handleSummary(data) {
             http_reqs: httpReqs,
             dropped_iterations: droppedIterations,
             checkout_orders_verified_created: data.metrics.checkout_orders_created?.values?.count,
+            checkout_orders_success: errorReport.resultBreakdown.success,
+            checkout_orders_failure: errorReport.resultBreakdown.failure,
             note: droppedIterations > 0
                 ? 'Some iterations were dropped because the configured rate needs more VUs/server capacity than available.'
                 : 'No dropped iterations.',
         }, null, 2),
-        'test-results/k6/checkout-order-load-summary.json': JSON.stringify(data, null, 2),
-        'test-results/k6/checkout-order-load-error-report.json': JSON.stringify(errorReport, null, 2),
-        'test-results/k6/checkout-order-load-error-report.md': buildMarkdownReport(errorReport),
+        [`test-results/k6/${reportBaseName}-summary.json`]: rawSummary,
+        [`test-results/k6/${reportBaseName}-report.json`]: reportJson,
+        [`test-results/k6/${reportBaseName}-report.md`]: reportMarkdown,
+        [`test-results/k6/${reportBaseName}-error-report.json`]: reportJson,
+        [`test-results/k6/${reportBaseName}-error-report.md`]: reportMarkdown,
+        'test-results/k6/checkout-order-load-summary.json': rawSummary,
+        'test-results/k6/checkout-order-load-report.json': reportJson,
+        'test-results/k6/checkout-order-load-report.md': reportMarkdown,
+        'test-results/k6/checkout-order-load-error-report.json': reportJson,
+        'test-results/k6/checkout-order-load-error-report.md': reportMarkdown,
     };
 }

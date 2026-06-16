@@ -32,6 +32,17 @@ export function buildErrorReport(data, config) {
     const http4xx = getMetricValue(data, 'checkout_http_4xx', 'count');
     const http5xx = getMetricValue(data, 'checkout_http_5xx', 'count');
     const networkErrorCount = getMetricValue(data, 'checkout_network_errors', 'count');
+    const resultBreakdown = {
+        success: getMetricValue(data, 'checkout_order_success', 'count'),
+        failure: getMetricValue(data, 'checkout_order_failure', 'count'),
+        categories: {
+            verifiedCreated: getMetricValue(data, 'checkout_order_verified_created', 'count'),
+            http4xx: getMetricValue(data, 'checkout_order_http_4xx_failure', 'count'),
+            http5xx: getMetricValue(data, 'checkout_order_http_5xx_failure', 'count'),
+            networkError: getMetricValue(data, 'checkout_order_network_failure', 'count'),
+            validationFailed: getMetricValue(data, 'checkout_order_validation_failure', 'count'),
+        },
+    };
     const systemErrors = [];
 
     if (http5xx > 0) {
@@ -87,6 +98,7 @@ export function buildErrorReport(data, config) {
             httpReqDurationP95: p95Duration,
             droppedIterations,
         },
+        resultBreakdown,
         failedThresholds,
         thresholds: thresholdResults,
         systemErrors,
@@ -103,12 +115,22 @@ export function buildMarkdownReport(errorReport) {
         `- Pass: ${errorReport.summary.pass}`,
         `- HTTP requests: ${errorReport.summary.httpReqs}`,
         `- Verified created orders: ${errorReport.summary.verifiedCreatedOrders}`,
+        `- Result success cases: ${errorReport.resultBreakdown.success}`,
+        `- Result failure cases: ${errorReport.resultBreakdown.failure}`,
         `- HTTP 2xx: ${errorReport.summary.http2xx}`,
         `- HTTP 4xx: ${errorReport.summary.http4xx}`,
         `- HTTP 5xx: ${errorReport.summary.http5xx}`,
         `- Network errors: ${errorReport.summary.networkErrors}`,
         `- Dropped iterations: ${errorReport.summary.droppedIterations}`,
         `- p95 duration ms: ${errorReport.summary.httpReqDurationP95}`,
+        '',
+        '## Result Breakdown',
+        '',
+        `- Success / verified_created: ${errorReport.resultBreakdown.categories.verifiedCreated}`,
+        `- Failure / http_4xx: ${errorReport.resultBreakdown.categories.http4xx}`,
+        `- Failure / http_5xx: ${errorReport.resultBreakdown.categories.http5xx}`,
+        `- Failure / network_error: ${errorReport.resultBreakdown.categories.networkError}`,
+        `- Failure / validation_failed: ${errorReport.resultBreakdown.categories.validationFailed}`,
         '',
         '## System Errors',
         '',

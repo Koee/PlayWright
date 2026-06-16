@@ -82,8 +82,7 @@ logs/
 .env.*
 !.env.example
 !.env.test.example
-test-data/env/.env
-!test-data/env/.env.example
+!test-data/env/.env
 test-data/k6/
 test-data/sheet/
 
