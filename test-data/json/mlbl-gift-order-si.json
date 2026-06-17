@@ -1,0 +1,56 @@
+{
+  "projectName": "si",
+  "apiPath": "/api",
+  "token": "a8F3kL9xQ2pZ7mN4",
+  "orderCodePrefix": "ONLINE-MLBL-CSB2B",
+  "customer": {
+    "name": "",
+    "phone": "",
+    "address": ""
+  },
+  "paymentMethod": "ACB",
+  "staff": {
+    "staffName": "CAO QUANG VINH",
+    "staffCode": "IP6PFT",
+    "staffEmail": "kiot.hcm.019.6.ntd@one-solution.vn",
+    "kiotCode": "Kiot-HCM-019"
+  },
+  "targetGroup": {
+    "maBich": "",
+    "tenBich": "",
+    "sizeBich": "",
+    "nhomDoiTuong": "Si"
+  },
+  "giftBudget": 4898880,
+  "giftQuantity": 1,
+  "combo": {
+    "name": "KEYONE MEN gel shampoo gets OPPO A5x gift",
+    "rule": {
+      "requiredProductQuantity": 7,
+      "rewardGiftQuantity": 1
+    },
+    "product": {
+      "sku": "40000263",
+      "tenSP": "Gel Goi KEYONE MEN Nano Bac (Chai 500ml)",
+      "nhanHang": "KEYONE MEN",
+      "giaSauKM": 2799360,
+      "soLuong": 1,
+      "giaGoc": 4665600,
+      "brandType": "CORE",
+      "hhNvkd": 373248,
+      "tAdminNvkd": 93312,
+      "donVi": "Thung 24 Chai",
+      "sheetName": "SP-DON"
+    },
+    "gift": {
+      "sku": "SPE0000450",
+      "tenSP": "Dien thoai OPPO A5x 4GB/128GB co NFC, nhan ban ung dung - Hang chinh hang-TRANG",
+      "nhanHang": "OPPO",
+      "soLuong": 1,
+      "giaTriHangTang": 4220000,
+      "hinhThucGiao": "giao sau",
+      "loai": "Qua tang",
+      "sheetName": "GIFTS_GiaoSau"
+    }
+  }
+}

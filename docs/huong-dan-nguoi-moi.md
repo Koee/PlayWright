@@ -387,6 +387,47 @@ Khi sua copy:
 
 ## 6. Ban Muon Lam Viec Gi Thi Bat Dau O Dau
 
+### Truoc khi tao testcase moi hoac sua flow nhieu file
+
+Neu task tao testcase moi, them flow API/k6, doi data phuc tap, hoac sua nhieu hon 1 file, phai lap kich ban ngan truoc khi code.
+
+Luu kich ban vao:
+
+```text
+docs/superpowers/plans/YYYY-MM-DD-ten-task.md
+```
+
+Kich ban toi thieu can co:
+
+```text
+Muc tieu:
+- Ket qua can dat.
+
+Pham vi:
+- File se doc/sua.
+
+Khong lam:
+- Viec ngoai scope, refactor, full test.
+
+Huong sua:
+- 2-5 buoc ngan.
+
+Verify:
+- Lenh nho nhat can chay.
+```
+
+Vi du da co:
+
+```text
+docs/superpowers/plans/2026-06-16-mlbl-gift-order-scenario-cache.md
+```
+
+Luu y:
+
+- Khong can plan dai cho typo hoac sua 1 dong ro rang.
+- Neu task co tao testcase moi, flow API, k6, data dong, hoac report moi thi nen co plan.
+- Khong commit plan neu user chua yeu cau commit.
+
 ### Them testcase moi
 
 1. Tao file spec trong `tests/<feature>/`.
@@ -487,6 +528,73 @@ Quy tac:
 - Endpoint lap lai dua vao constants.
 - Payload/response phuc tap nen co type.
 - Mock response phai giong schema that.
+
+### Them API order co qua tang / data dong
+
+Khong nen hardcode truc tiep san pham va qua tang trong spec neu moi website co rule khac nhau.
+
+Nen dung mo hinh:
+
+```text
+tests/api/.../*.spec.ts
+  -> steps/...steps.ts
+      -> components/helpers/*payload.ts
+          -> test-data/json/<scenario>.json
+```
+
+Trong do:
+
+- `scenario.json` chua day du combo product + gift + rule de tester chi can sua 1 file.
+- `combo.rule.requiredProductQuantity` va `combo.rule.rewardGiftQuantity` mo ta ty le mua/nhan qua.
+- `giftQuantity` la so luong qua muon nhan trong testcase.
+- Helper build payload se tinh so luong san pham tu rule, tinh tong tien, sinh orderCode, va tra ve payload cuoi.
+- k6 nen doc cung file scenario de Playwright API va performance khong lech data.
+- Neu sau nay can sinh data tu Excel/API lon, co the generate cache nho rieng, nhung khong nen bat tester sua nhieu file cho mot testcase.
+
+Vi du flow MLBL gift order:
+
+```text
+tests/api/checkout/mlbl-gift-order-api.spec.ts
+  -> steps/mlbl-gift-order.steps.ts
+      -> components/helpers/mlbl-gift-order-payload.ts
+          -> test-data/json/mlbl-gift-order-si.json
+```
+
+File scenario:
+
+```json
+{
+  "projectName": "si",
+  "giftQuantity": 1,
+  "combo": {
+    "rule": {
+      "requiredProductQuantity": 77,
+      "rewardGiftQuantity": 1
+    },
+    "product": {
+      "sku": "40000263"
+    },
+    "gift": {
+      "sku": "SPE0000450"
+    }
+  }
+}
+```
+
+Quy tac:
+
+- Neu Excel/sheet lon, khong doc toan file trong moi test run. Hay extract truoc thanh JSON nho neu can tu dong hoa data.
+- Moi website co the co file scenario rieng: `mlbl-gift-order-si.json`, `mlbl-gift-order-hangthietyeu.json`, ...
+- Khi can doi san pham A de duoc qua B, uu tien sua `combo.product`, `combo.gift`, va `combo.rule`, khong sua spec.
+- Neu tang so luong qua, doi `giftQuantity`; helper se scale so luong san pham theo `combo.rule`. Vi du `requiredProductQuantity = 77`, `rewardGiftQuantity = 1`, `giftQuantity = 2` thi payload se mua 154 san pham va nhan 2 qua.
+- Neu payload co `skipDetail`, can set `false` khi muon don day sang `order_detail`.
+
+Lenh lien quan MLBL gift order:
+
+```bash
+npx playwright test tests/api/checkout/mlbl-gift-order-api.spec.ts --project=si
+npm run k6:mlbl-gift-order:smoke
+```
 
 ---
 

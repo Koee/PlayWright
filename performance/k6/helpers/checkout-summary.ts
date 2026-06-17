@@ -54,7 +54,7 @@ export function buildErrorReport(data, config) {
     if (networkErrorCount > 0) {
         systemErrors.push(`${networkErrorCount} request(s) failed before receiving a valid HTTP status.`);
     }
-    if (droppedIterations > 0) {
+    if (droppedIterations > config.droppedIterationsLimit) {
         systemErrors.push(`${droppedIterations} iteration(s) were dropped because k6 could not keep the configured arrival rate.`);
     }
     if (p95Duration !== undefined && p95Duration >= config.p95ThresholdMs) {

@@ -22,6 +22,9 @@
     "k6:checkout:guest:json": "node scripts/run-k6-checkout.js --mode guest --json",
     "k6:checkout:guest:smoke": "node scripts/run-k6-checkout.js --mode guest --json --smoke",
     "k6:checkout:login:json": "node scripts/run-k6-checkout.js --mode login --json",
+    "k6:mlbl-gift-order": "node scripts/run-k6-mlbl-gift-order.js",
+    "k6:mlbl-gift-order:json": "node scripts/run-k6-mlbl-gift-order.js --json",
+    "k6:mlbl-gift-order:smoke": "node scripts/run-k6-mlbl-gift-order.js --json --smoke",
     "k6:build": "tsc --project tsconfig.k6.json",
     "typecheck": "tsc --noEmit"
   },
