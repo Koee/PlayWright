@@ -26,7 +26,7 @@
   "combo": {
     "name": "KEYONE MEN gel shampoo gets OPPO A5x gift",
     "rule": {
-      "requiredProductQuantity": 7,
+      "requiredProductQuantity": 36,
       "rewardGiftQuantity": 1
     },
     "product": {
@@ -43,11 +43,11 @@
       "sheetName": "SP-DON"
     },
     "gift": {
-      "sku": "SPE0000450",
-      "tenSP": "Dien thoai OPPO A5x 4GB/128GB co NFC, nhan ban ung dung - Hang chinh hang-TRANG",
-      "nhanHang": "OPPO",
+      "sku": "SPE0000016",
+      "tenSP": "Điện thoại Apple iPhone 17 256GB",
+      "nhanHang": "APPLE",
       "soLuong": 1,
-      "giaTriHangTang": 4220000,
+      "giaTriHangTang": 24999000,
       "hinhThucGiao": "giao sau",
       "loai": "Qua tang",
       "sheetName": "GIFTS_GiaoSau"

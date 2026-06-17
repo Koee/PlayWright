@@ -17,6 +17,7 @@ Default operating mode:
 - Store formal project implementation plans under `docs/plans/YYYY-MM-DD-<feature-name>.md` and the live task tracker at `docs/plans/task.md`; keep `task.md` concise and do not paste long logs or implementation details there.
 - Do not use `docs/superpowers/plans/` unless the user explicitly asks for that default.
 - Follow the repository file structure described in `Agent/agent-workflow-scope-guide.md` before creating new files or folders.
+- When creating a new test script/spec intended for repeated use, update `package.json` scripts and `docs/repo-command-guide.md` with the run command, required setup, report/artifact output, and a short purpose summary.
 - Do not run full test suites unless the user asks or the change clearly affects shared behavior.
 - Do not refactor outside the requested scope.
 - Do not create a new brand or rename the product unless the user explicitly asks.

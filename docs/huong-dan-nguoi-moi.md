@@ -39,7 +39,7 @@ Constants chua gia tri lap lai.
 Vi du flow checkout:
 
 ```text
-tests/checkout/checkout-flow.spec.ts
+tests/ui/checkout/invoice.spec.ts
   -> steps/checkout.steps.ts
       -> components/pages/CheckoutPage.ts
       -> components/pages/InvoicePage.ts
@@ -52,8 +52,8 @@ tests/checkout/checkout-flow.spec.ts
 Vi du flow copy:
 
 ```text
-tests/checkout/copy-functionality.spec.ts
-tests/checkout/copy-project-stages.spec.ts
+tests/ui/checkout/copy-functionality.spec.ts
+tests/ui/checkout/copy-project-stages.spec.ts
   -> steps/copy.steps.ts
       -> components/pages/CopyPage.ts
           -> components/helpers/dialog-handler.ts
@@ -107,9 +107,9 @@ Can nam:
 Doc:
 
 ```text
-tests/checkout/checkout-flow.spec.ts
-tests/checkout/copy-functionality.spec.ts
-tests/checkout/copy-project-stages.spec.ts
+tests/ui/checkout/invoice.spec.ts
+tests/ui/checkout/copy-functionality.spec.ts
+tests/ui/checkout/copy-project-stages.spec.ts
 ```
 
 Can nam:
@@ -216,7 +216,7 @@ npm run test:copy
 Chay mot spec:
 
 ```bash
-npx playwright test tests/checkout/copy-project-stages.spec.ts
+npx playwright test tests/ui/checkout/copy-project-stages.spec.ts
 ```
 
 Chay mot website/project:
@@ -247,7 +247,7 @@ Luu y: checkout flow co the tao don hang that tren URL dang cau hinh. Chi chay f
 Entry point:
 
 ```text
-tests/checkout/checkout-flow.spec.ts
+tests/ui/checkout/invoice.spec.ts
 ```
 
 Spec goi:
@@ -314,8 +314,8 @@ Khong nen:
 Entry point:
 
 ```text
-tests/checkout/copy-functionality.spec.ts
-tests/checkout/copy-project-stages.spec.ts
+tests/ui/checkout/copy-functionality.spec.ts
+tests/ui/checkout/copy-project-stages.spec.ts
 ```
 
 Spec goi:
@@ -696,9 +696,9 @@ npm run test:list
 Neu co thay doi flow quan trong, chay them spec lien quan:
 
 ```bash
-npx playwright test tests/checkout/checkout-flow.spec.ts --project=si
-npx playwright test tests/checkout/copy-functionality.spec.ts --project=si
-npx playwright test tests/checkout/copy-project-stages.spec.ts --project=si
+npx playwright test tests/ui/checkout/invoice.spec.ts --project=si
+npx playwright test tests/ui/checkout/copy-functionality.spec.ts --project=si
+npx playwright test tests/ui/checkout/copy-project-stages.spec.ts --project=si
 ```
 
 ---

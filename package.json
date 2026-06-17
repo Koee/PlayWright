@@ -6,7 +6,7 @@
   "scripts": {
     "cleanup:screenshots": "node scripts/cleanup-screenshots.js",
     "test": "playwright test",
-    "test:checkout": "playwright test tests/ui/checkout/checkout-flow.spec.ts",
+    "test:checkout": "playwright test tests/ui/checkout/invoice.spec.ts",
     "test:copy": "playwright test tests/ui/checkout/copy-functionality.spec.ts",
     "test:ui-bulk": "playwright test tests/ui/checkout/checkout-bulk-flow.spec.ts",
     "test:list": "playwright test --list",

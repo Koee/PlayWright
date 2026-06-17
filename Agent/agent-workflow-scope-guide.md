@@ -468,10 +468,10 @@ Vi du:
 
 ```text
 Che do tiet kiem quota.
-Fix loi trong tests/checkout/copy-functionality.spec.ts.
+Fix loi trong tests/ui/checkout/copy-functionality.spec.ts.
 Chi doc spec, steps/copy.steps.ts va components/pages/CopyPage.ts.
 Khong chay full suite.
-Verify bang npx playwright test tests/checkout/copy-functionality.spec.ts.
+Verify bang npx playwright test tests/ui/checkout/copy-functionality.spec.ts.
 ```
 
 ## 7. Agent De Xuat De Kiem Soat Chat Luong
@@ -557,7 +557,12 @@ Muc dich:
 7. Tao hoac mo rong Page Object/API helper neu can.
 8. Dua selector/text dung chung vao constants neu duoc dung lai.
 9. Them expect de testcase fail khi behavior sai.
-10. Chay typecheck va spec moi.
+10. Neu tao test script/spec moi can chay thuong xuyen, them hoac cap nhat npm script trong `package.json` theo ten ro nghia, vi du `test:<feature>`.
+11. Cap nhat `docs/repo-command-guide.md` dung flow lien quan. Bat buoc ghi ngan gon: muc dich, setup o file nao/env nao/config nao, lenh run, report/artifact sau khi chay.
+    - Setup phai neu ro duong dan file, vi du `test-data/env/.env`, `config/test.config.ts`, file JSON trong `test-data/json`, token/auth env neu co.
+    - Neu chi bo sung test script moi vao flow da co, khong doc lai toan bo guide/repo; chi sua dung section lien quan.
+    - Chi doc/sua command cu khi test script moi anh huong `package.json`, config runner, project, grep tag, report path, hoac flow chay hien co.
+12. Chay verify nho nhat: typecheck neu can va spec moi hoac npm script moi vua them.
 ```
 
 ## 10. Workflow Chuan Cho Task Tao API Test
@@ -571,7 +576,12 @@ Muc dich:
 6. Dua helper dung chung vao utils/components/helpers neu duoc dung lai.
 7. Assert status, response schema/fields, va loi nghiep vu quan trong.
 8. Neu test tao data, ghi ro cleanup hoac ly do khong cleanup.
-9. Chay spec API nho nhat, khong chay full suite neu chua can.
+9. Neu tao test script/spec moi can chay thuong xuyen, them hoac cap nhat npm script trong `package.json` theo ten ro nghia, vi du `test:api-<feature>`.
+10. Cap nhat `docs/repo-command-guide.md` dung flow lien quan. Bat buoc ghi ngan gon: muc dich, setup o file nao/env nao/config nao, lenh run, report/artifact sau khi chay.
+    - Setup phai neu ro duong dan file, vi du `test-data/env/.env`, `config/test.config.ts`, file JSON trong `test-data/json`, token/auth env neu co.
+    - Neu chi bo sung API test moi vao flow da co, khong doc lai toan bo guide/repo; chi sua dung section lien quan.
+    - Chi doc/sua command cu khi API test moi anh huong `package.json`, config runner, project, grep tag, report path, hoac flow chay hien co.
+11. Chay spec API nho nhat, khong chay full suite neu chua can.
 ```
 
 ## 11. Checklist Truoc Khi Ket Thuc

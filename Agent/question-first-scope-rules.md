@@ -88,7 +88,7 @@ Vi du:
 
 ```text
 Muc tieu: tim nguyen nhan checkout fail.
-Pham vi ban dau: tests/checkout/checkout-flow.spec.ts va steps/checkout.steps.ts.
+Pham vi ban dau: tests/ui/checkout/invoice.spec.ts va steps/checkout.steps.ts.
 Neu thieu: chi mo rong sang file import truc tiep hoac file xuat hien trong stack trace.
 Khong lam: khong refactor, khong chay full suite.
 Verify: de xuat lenh nho nhat truoc.

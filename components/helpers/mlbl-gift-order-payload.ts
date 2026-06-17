@@ -45,6 +45,35 @@ type MlblGiftOrderComboSource = {
     path: string;
 };
 
+export type MlblGiftOrderEditableConfig = {
+    productSku: string;
+    productQuantity: number;
+    giftSku: string;
+    giftQuantity: number;
+    livePricing?: {
+        enabled: boolean;
+    };
+};
+
+export type MlblGiftOrderLiveProductPrice = {
+    sku: string;
+    tenSP?: string;
+    nhanHang?: string;
+    giaSauKM: number;
+};
+
+export type MlblGiftOrderLiveGiftData = {
+    sku: string;
+    tenSP?: string;
+    nhanHang?: string;
+    giaTriHangTang?: number;
+};
+
+export type MlblGiftOrderLiveData = MlblGiftOrderLiveProductPrice | {
+    product?: MlblGiftOrderLiveProductPrice;
+    gift?: MlblGiftOrderLiveGiftData;
+};
+
 export type MlblGiftOrderData = {
     projectName: string;
     apiPath: string;
@@ -82,6 +111,11 @@ export type MlblGiftOrderData = {
     rule?: MlblGiftOrderComboRule;
     products?: MlblGiftOrderProduct[];
     gifts?: MlblGiftOrderGift[];
+};
+
+type ResolvedMlblGiftOrderScenario = {
+    products: MlblGiftOrderProduct[];
+    gifts: MlblGiftOrderGift[];
 };
 
 type MlblGiftOrderCombo = {
@@ -142,11 +176,16 @@ export type MlblGiftOrderPayload = {
 };
 
 const DATA_PATH = path.resolve(process.cwd(), 'test-data', 'json', 'mlbl-gift-order-si.json');
+const CONFIG_PATH = path.resolve(process.cwd(), 'test-data', 'json', 'mlbl-gift-order-config.json');
 const ORDER_CODE_SUFFIX_LENGTH = 6;
 const ORDER_CODE_SUFFIX_BASE = 36 ** ORDER_CODE_SUFFIX_LENGTH;
 
 export function loadMlblGiftOrderData(dataPath = DATA_PATH): MlblGiftOrderData {
     return JSON.parse(fs.readFileSync(dataPath, 'utf-8').replace(/^\uFEFF/, ''));
+}
+
+export function loadMlblGiftOrderConfig(configPath = CONFIG_PATH): MlblGiftOrderEditableConfig {
+    return JSON.parse(fs.readFileSync(configPath, 'utf-8').replace(/^\uFEFF/, ''));
 }
 
 function resolveProjectPath(filePath: string) {
@@ -200,6 +239,132 @@ function getScenarioGiftQuantity(data: MlblGiftOrderData) {
     return data.giftSelector?.soLuong ?? data.giftQuantity;
 }
 
+function assertPositiveQuantity(name: string, value: number) {
+    if (!Number.isFinite(value) || value <= 0) {
+        throw new Error(`${name} must be a positive number. Current value: ${value}`);
+    }
+}
+
+function withEditableSelectors(data: MlblGiftOrderData, config: MlblGiftOrderEditableConfig | undefined): MlblGiftOrderData {
+    if (!config) {
+        return data;
+    }
+
+    return {
+        ...data,
+        productSelector: {
+            ...data.productSelector,
+            sku: config.productSku,
+        },
+        giftSelector: {
+            ...data.giftSelector,
+            sku: config.giftSku,
+        },
+    };
+}
+
+function isStructuredLiveData(liveData: MlblGiftOrderLiveData): liveData is { product?: MlblGiftOrderLiveProductPrice; gift?: MlblGiftOrderLiveGiftData } {
+    return 'product' in liveData || 'gift' in liveData;
+}
+
+function getLiveProductOverride(liveData: MlblGiftOrderLiveData | undefined): MlblGiftOrderLiveProductPrice | undefined {
+    if (!liveData) {
+        return undefined;
+    }
+
+    return isStructuredLiveData(liveData) ? liveData.product : liveData;
+}
+
+function getLiveGiftOverride(liveData: MlblGiftOrderLiveData | undefined): MlblGiftOrderLiveGiftData | undefined {
+    if (!liveData) {
+        return undefined;
+    }
+
+    return isStructuredLiveData(liveData) ? liveData.gift : undefined;
+}
+
+function buildProductFromLiveData(
+    productTemplate: MlblGiftOrderProduct | undefined,
+    liveProduct: MlblGiftOrderLiveProductPrice | undefined,
+): MlblGiftOrderProduct | undefined {
+    if (!productTemplate || !liveProduct) {
+        return undefined;
+    }
+
+    return {
+        ...productTemplate,
+        ...liveProduct,
+    };
+}
+
+function buildGiftFromLiveData(
+    giftTemplate: MlblGiftOrderGift | undefined,
+    liveGift: MlblGiftOrderLiveGiftData | undefined,
+): MlblGiftOrderGift | undefined {
+    if (!giftTemplate || !liveGift) {
+        return undefined;
+    }
+
+    if (!liveGift.tenSP || !liveGift.nhanHang || liveGift.giaTriHangTang === undefined) {
+        throw new Error(`Live MLBL gift data for SKU ${liveGift.sku} must include tenSP, nhanHang, and giaTriHangTang.`);
+    }
+
+    return {
+        ...giftTemplate,
+        ...liveGift,
+    };
+}
+
+function applyEditableConfig(
+    scenario: ResolvedMlblGiftOrderScenario,
+    config: MlblGiftOrderEditableConfig | undefined,
+    liveData?: MlblGiftOrderLiveData,
+): ResolvedMlblGiftOrderScenario {
+    if (!config) {
+        return scenario;
+    }
+
+    assertPositiveQuantity('productQuantity', config.productQuantity);
+    assertPositiveQuantity('giftQuantity', config.giftQuantity);
+
+    const product = scenario.products.find(item => matchesSelector(item, { sku: config.productSku }));
+    const liveProduct = getLiveProductOverride(liveData);
+    const liveGift = getLiveGiftOverride(liveData);
+    const targetProductSku = liveProduct?.sku || config.productSku;
+    const targetGiftSku = liveGift?.sku || config.giftSku;
+    const resolvedProduct = scenario.products.find(item => matchesSelector(item, { sku: targetProductSku }))
+        ?? product
+        ?? buildProductFromLiveData(scenario.products[0], liveProduct);
+    const gift = scenario.gifts.find(item => matchesSelector(item, { sku: targetGiftSku }))
+        ?? scenario.gifts.find(item => matchesSelector(item, { sku: config.giftSku }))
+        ?? buildGiftFromLiveData(scenario.gifts[0], liveGift);
+
+    if (!resolvedProduct) {
+        throw new Error(`Could not resolve MLBL gift order product SKU from config/live data: ${targetProductSku}`);
+    }
+
+    if (!gift) {
+        throw new Error(`Could not resolve MLBL gift order gift SKU from config/live data: ${targetGiftSku}`);
+    }
+
+    return {
+        products: [
+            {
+                ...resolvedProduct,
+                ...(liveProduct?.sku === targetProductSku ? liveProduct : {}),
+                soLuong: config.productQuantity,
+            },
+        ],
+        gifts: [
+            {
+                ...gift,
+                ...(liveGift?.sku === targetGiftSku ? liveGift : {}),
+                soLuong: config.giftQuantity,
+            },
+        ],
+    };
+}
+
 function scaleScenarioQuantities(
     products: MlblGiftOrderProduct[],
     gifts: MlblGiftOrderGift[],
@@ -237,53 +402,59 @@ function scaleScenarioQuantities(
     };
 }
 
-export function resolveMlblGiftOrderScenario(data = loadMlblGiftOrderData()) {
-    if (data.combo) {
-        return scaleScenarioQuantities(
+export function resolveMlblGiftOrderScenario(
+    data = loadMlblGiftOrderData(),
+    config?: MlblGiftOrderEditableConfig,
+    liveData?: MlblGiftOrderLiveData,
+): ResolvedMlblGiftOrderScenario {
+    const scenarioData = withEditableSelectors(data, config);
+
+    if (scenarioData.combo) {
+        return applyEditableConfig(scaleScenarioQuantities(
             [data.combo.product],
             [data.combo.gift],
             {
-                ...data.giftSelector,
-                soLuong: getScenarioGiftQuantity(data),
+                ...scenarioData.giftSelector,
+                soLuong: getScenarioGiftQuantity(scenarioData),
             },
-            data.combo.rule,
-        );
+            scenarioData.combo.rule,
+        ), config, liveData);
     }
 
-    if (data.products?.length && data.gifts?.length) {
-        return scaleScenarioQuantities(
-            data.products.filter(product => matchesSelector(product, data.productSelector)),
-            data.gifts.filter(gift => matchesSelector(gift, data.giftSelector)),
-            data.giftSelector,
-            data.rule,
-        );
+    if (scenarioData.products?.length && scenarioData.gifts?.length) {
+        return applyEditableConfig(scaleScenarioQuantities(
+            scenarioData.products.filter(product => matchesSelector(product, scenarioData.productSelector)),
+            scenarioData.gifts.filter(gift => matchesSelector(gift, scenarioData.giftSelector)),
+            scenarioData.giftSelector,
+            scenarioData.rule,
+        ), config, liveData);
     }
 
-    if (!data.comboSource) {
+    if (!scenarioData.comboSource) {
         throw new Error('MLBL gift order data must define products/gifts or comboSource.');
     }
 
-    const cache = readComboCache(data.comboSource);
+    const cache = readComboCache(scenarioData.comboSource);
     const combo = cache.combos.find(candidate => {
-        return candidate.products.some(product => matchesSelector(product, data.productSelector))
-            && candidate.gifts.some(gift => matchesSelector(gift, data.giftSelector));
+        return candidate.products.some(product => matchesSelector(product, scenarioData.productSelector))
+            && candidate.gifts.some(gift => matchesSelector(gift, scenarioData.giftSelector));
     });
 
     if (!combo) {
         throw new Error([
-            `Could not resolve MLBL gift order combo for project "${data.projectName}".`,
-            `Product selector: ${JSON.stringify(data.productSelector || {})}.`,
-            `Gift selector: ${JSON.stringify(data.giftSelector || {})}.`,
-            `Source: ${data.comboSource.path}.`,
+            `Could not resolve MLBL gift order combo for project "${scenarioData.projectName}".`,
+            `Product selector: ${JSON.stringify(scenarioData.productSelector || {})}.`,
+            `Gift selector: ${JSON.stringify(scenarioData.giftSelector || {})}.`,
+            `Source: ${scenarioData.comboSource.path}.`,
         ].join(' '));
     }
 
-    return scaleScenarioQuantities(
-        combo.products.filter(product => matchesSelector(product, data.productSelector)),
-        combo.gifts.filter(gift => matchesSelector(gift, data.giftSelector)),
-        data.giftSelector,
+    return applyEditableConfig(scaleScenarioQuantities(
+        combo.products.filter(product => matchesSelector(product, scenarioData.productSelector)),
+        combo.gifts.filter(gift => matchesSelector(gift, scenarioData.giftSelector)),
+        scenarioData.giftSelector,
         combo.rule,
-    );
+    ), config, liveData);
 }
 
 export function resolveMlblGiftOrderApiUrl(baseUrl: string, data = loadMlblGiftOrderData()) {
@@ -305,8 +476,13 @@ export function generateMlblGiftOrderCode(prefix: string, now = new Date()) {
     return `${prefix}-${datePart}-${timePart}-${suffix}`;
 }
 
-export function buildMlblGiftOrderPayload(baseUrl: string, data = loadMlblGiftOrderData()): MlblGiftOrderPayload {
-    const scenario = resolveMlblGiftOrderScenario(data);
+export function buildMlblGiftOrderPayload(
+    baseUrl: string,
+    data = loadMlblGiftOrderData(),
+    config = loadMlblGiftOrderConfig(),
+    liveData?: MlblGiftOrderLiveData,
+): MlblGiftOrderPayload {
+    const scenario = resolveMlblGiftOrderScenario(data, config, liveData);
     const products = scenario.products.map(product => ({
         ...product,
         tienSauKM: product.giaSauKM * product.soLuong,
