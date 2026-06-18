@@ -49,8 +49,8 @@ Doc `package.json` de biet project chay bang lenh nao:
 ```json
 {
   "test": "playwright test",
-  "test:checkout": "playwright test tests/ui/checkout/invoice.spec.ts",
-  "test:copy": "playwright test tests/ui/checkout/copy-functionality.spec.ts",
+  "test:checkout-invoice": "playwright test tests/ui/checkout/invoice.spec.ts",
+  "test:copy-qr": "playwright test tests/ui/checkout/copy-qr-content.spec.ts",
   "test:list": "playwright test --list",
   "typecheck": "tsc --noEmit"
 }
@@ -59,8 +59,8 @@ Doc `package.json` de biet project chay bang lenh nao:
 Y nghia:
 
 - `npm run test`: chay tat ca spec.
-- `npm run test:checkout`: chay flow checkout.
-- `npm run test:copy`: chay flow sao chep.
+- `npm run test:checkout-invoice`: chay flow checkout.
+- `npm run test:copy-qr`: chay flow sao chep.
 - `npm run test:list`: xem danh sach test Playwright se chay.
 - `npm run typecheck`: kiem tra loi TypeScript.
 
@@ -98,11 +98,11 @@ export const SITE_PROJECTS = [
 
 Moi item tro thanh mot Playwright project. Vi vay cung mot file spec co the chay lap lai tren nhieu website.
 
-Vi du `copy-functionality.spec.ts` chi co mot test, nhung Playwright se chay test do tren tung project website.
+Vi du `copy-qr-content.spec.ts` chi co mot test, nhung Playwright se chay test do tren tung project website.
 
 ## 5. Doc File Spec
 
-Vi du flow copy bat dau tu `tests/ui/checkout/copy-functionality.spec.ts`:
+Vi du flow copy bat dau tu `tests/ui/checkout/copy-qr-content.spec.ts`:
 
 ```ts
 import { test } from '@playwright/test';

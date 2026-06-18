@@ -124,6 +124,8 @@ Quy tac:
 - Sua Page Object nao thi chay spec dai dien lien quan.
 - Sua constants selector thi chay spec dung selector do.
 - Sua config/env chung thi chay typecheck va mot spec dai dien truoc.
+- Neu loi nam trong mot testcase ro ten, uu tien chay testcase do bang `--grep` truoc khi chay ca spec/project lien quan.
+- Chi chay ca spec/project lien quan sau khi testcase `--grep` da pass, user yeu cau, hoac thay doi co rui ro anh huong nhieu testcase trong spec do.
 - Chi chay full suite khi user yeu cau hoac khi thay doi co anh huong rong.
 
 Mau lenh uu tien:
@@ -140,6 +142,7 @@ Agent phai canh bao hoac dung lai hoi user khi:
 
 - Task nho nen doc toi da 3-5 file. Neu can hon 5 file, phai noi ly do mo rong truoc khi doc tiep.
 - Task nho nhung da can doc hon 8 file thi phai dung lai, tom tat hien trang, va hoi user truoc khi mo rong.
+- Khi doc Playwright error context/report/log, bat dau tu error message, stack trace, ten testcase fail, va cac dong page snapshot lien quan truc tiep den loi; khong doc ca artifact neu cac doan nay da du.
 - Command output qua dai va khong con tap trung vao loi chinh.
 - Da chay hon 2 vong verify fail ma chua co huong moi.
 - Can doc report/log lon thay vi phan loi chinh.
@@ -165,7 +168,7 @@ Muc tieu: ...
 Pham vi: chi ...
 Khong lam: khong refactor, khong chay full test.
 Verify: ...
-Output: tom tat ngan file da sua va ket qua verify.
+Output: root cause, file da sua, ket qua verify, rui ro con lai.
 ```
 
 Mau khi chua chac pham vi:

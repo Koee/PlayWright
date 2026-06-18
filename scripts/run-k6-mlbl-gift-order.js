@@ -85,7 +85,7 @@ const writeJson = hasArg('--json');
 const smoke = hasArg('--smoke');
 const dryRun = hasArg('--dry-run');
 const projectName = readArgValue('--project', process.env.K6_PROJECT_NAME || 'si');
-const outputPath = readArgValue('--out', path.join('test-results', 'k6', `${projectName}-mlbl-gift-order-load-metrics.json`));
+const outputPath = readArgValue('--out', path.join('test-results', 'report', 'k6', `${projectName}-mlbl-gift-order-load-metrics.json`));
 const k6Path = path.join(rootDir, 'tools', 'k6', process.platform === 'win32' ? 'k6.exe' : 'k6');
 
 const env = {
@@ -102,7 +102,7 @@ const env = {
     K6_DROPPED_ITERATIONS_LIMIT: process.env.K6_DROPPED_ITERATIONS_LIMIT || (smoke ? '1' : '0'),
 };
 
-fs.mkdirSync(path.join(rootDir, 'test-results', 'k6'), { recursive: true });
+fs.mkdirSync(path.join(rootDir, 'test-results', 'report', 'k6'), { recursive: true });
 
 if (showVersion) {
     const result = spawnSync(k6Path, ['version'], {

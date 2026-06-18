@@ -11,7 +11,7 @@ export type BlockingPageError = {
     screenshotPath: string;
 };
 
-const errScreenshotDir = path.join('test-results', 'err-screenshots');
+const errScreenshotDir = path.join('test-results', 'report', 'err');
 const blockingErrorPrefix = 'Blocking page/API error detected';
 
 function safeContext(context: string) {

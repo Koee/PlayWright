@@ -213,11 +213,12 @@ async function exportMlblGiftOrderApiReport(
     payload: MlblGiftOrderPayload,
     result: MlblGiftOrderApiResult,
 ) {
-    const reportDir = path.resolve(process.cwd(), 'test-results', 'api-performance');
+    const reportDir = path.resolve(process.cwd(), 'test-results', 'report', 'api-performance');
     const baseName = `${testInfo.project.name}-mlbl-gift-order-api-report`;
     const jsonPath = path.join(reportDir, `${baseName}.json`);
     const markdownPath = path.join(reportDir, `${baseName}.md`);
     const summary = summarizeResult(result);
+    const postData = JSON.stringify(payload);
     const report = {
         generatedAt: new Date().toISOString(),
         project: testInfo.project.name,
@@ -226,9 +227,16 @@ async function exportMlblGiftOrderApiReport(
             method: 'POST',
             url: apiUrl,
             contentType: 'text/plain',
+            postData,
         },
         order: {
             orderCode: payload.orderData.orderCode,
+            customerName: payload.orderData.customerName,
+            customerPhone: payload.orderData.customerPhone,
+            giftReceiverName: payload.orderData.giftReceiverName,
+            giftReceiverPhone: payload.orderData.giftReceiverPhone,
+            orderBuyerName: payload.orderData.orderBuyerName,
+            orderBuyerPhone: payload.orderData.orderBuyerPhone,
             totalAmount: payload.orderData.totalAmount,
             productCount: payload.orderData.products.length,
             giftCount: payload.orderData.gift.items.length,
@@ -245,6 +253,12 @@ async function exportMlblGiftOrderApiReport(
         `- Project: ${testInfo.project.name}`,
         `- Endpoint: POST ${apiUrl}`,
         `- Order code: ${payload.orderData.orderCode}`,
+        `- Nguoi dat hang: ${payload.orderData.customerName}`,
+        `- SDT nguoi dat: ${payload.orderData.customerPhone}`,
+        `- Nguoi nhan qua: ${payload.orderData.giftReceiverName}`,
+        `- SDT nguoi nhan qua: ${payload.orderData.giftReceiverPhone}`,
+        `- Nguoi mua hang: ${payload.orderData.orderBuyerName}`,
+        `- SDT nguoi mua: ${payload.orderData.orderBuyerPhone}`,
         `- Product count: ${payload.orderData.products.length}`,
         `- Gift count: ${payload.orderData.gift.items.length}`,
         `- Total amount: ${payload.orderData.totalAmount}`,
@@ -255,6 +269,12 @@ async function exportMlblGiftOrderApiReport(
         result.createdEvidence ? `- Evidence: ${result.createdEvidence}` : '',
         result.validationError ? `- Validation: ${result.validationError}` : '',
         result.error ? `- Error: ${result.error}` : '',
+        '',
+        '## Request Body',
+        '',
+        '```json',
+        postData,
+        '```',
         '',
         '## Response Preview',
         '',
@@ -394,6 +414,12 @@ export async function exportMlblGiftOrderApiTemplate(testInfo: TestInfo, page?: 
         contentType: 'text/plain',
         postData: JSON.stringify(payload),
         orderCodePrefix: data.orderCodePrefix,
+        customerName: payload.orderData.customerName,
+        customerPhone: payload.orderData.customerPhone,
+        giftReceiverName: payload.orderData.giftReceiverName,
+        giftReceiverPhone: payload.orderData.giftReceiverPhone,
+        orderBuyerName: payload.orderData.orderBuyerName,
+        orderBuyerPhone: payload.orderData.orderBuyerPhone,
         dataPath: path.join('test-data', 'json', 'mlbl-gift-order-si.json'),
     }, null, 2));
     await testInfo.attach('mlbl-gift-order-k6-template', {

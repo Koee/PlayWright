@@ -117,7 +117,7 @@ export class CheckoutPage {
         }
 
         // Tab-not-found error screenshot file name and save location.
-        const errorPath = path.join('test-results', 'err-screenshots', `${websiteName}-tab-not-found.png`);
+        const errorPath = path.join('test-results', 'report', 'err', `${websiteName}-tab-not-found.png`);
         if (!page.isClosed()) {
             try {
                 await fs.mkdir(path.dirname(errorPath), { recursive: true });
@@ -170,7 +170,7 @@ export class CheckoutPage {
         }
 
         // Add-product failure screenshot file name.
-        const errorPath = path.join('test-results', 'err-screenshots', `add-product-button-not-found-${Date.now()}.png`);
+        const errorPath = path.join('test-results', 'report', 'err', `add-product-button-not-found-${Date.now()}.png`);
         await dialogHandler.captureFocusedFailureState(page, errorPath, [
             page.locator(productCardSelector).first(),
             page.locator('body'),
@@ -268,7 +268,7 @@ export class CheckoutPage {
             // If the tracker did not catch the dialog, still capture the blocked state before failing.
             // Native-dialog-blocked failure screenshot file name.
             const timestamp = Date.now();
-            const errorPath = path.join('test-results', 'err-screenshots', `confirm-payment-page-blocked-${timestamp}.png`);
+            const errorPath = path.join('test-results', 'report', 'err', `confirm-payment-page-blocked-${timestamp}.png`);
             await dialogHandler.captureFailureState(page, errorPath);
             throw new Error(`Page was blocked by a dialog and could not recover. Screenshot: ${errorPath}`);
         }
@@ -310,7 +310,7 @@ export class CheckoutPage {
         if (found) {
             console.log(`Confirming payment - Click dispatched on "${viLabels.confirmPayment}"`);
         } else {
-            const errorPath = path.join('test-results', 'err-screenshots', `confirm-payment-button-not-found-${Date.now()}.png`);
+            const errorPath = path.join('test-results', 'report', 'err', `confirm-payment-button-not-found-${Date.now()}.png`);
             await dialogHandler.captureFocusedFailureState(page, errorPath, [
                 page.getByRole('button', { name: viRegex.confirmPayment }).last(),
                 page.locator('button').filter({ hasText: viRegex.confirmPayment }).last(),
@@ -335,7 +335,7 @@ export class CheckoutPage {
             try {
                 if (await page.locator(sel).first().isVisible({ timeout: 300 })) {
                     const timestamp = Date.now();
-                    const errorPath = path.join('test-results', 'err-screenshots', `confirm-payment-popup-${timestamp}.png`);
+                    const errorPath = path.join('test-results', 'report', 'err', `confirm-payment-popup-${timestamp}.png`);
                     await fs.mkdir(path.dirname(errorPath), { recursive: true }).catch(() => { });
                     await dialogHandler.captureFocusedFailureState(page, errorPath, [
                         page.locator(sel).first(),
@@ -392,7 +392,7 @@ export class CheckoutPage {
         const popupLocators = getCustomerInfoPopupLocators(page);
         const visibleName = await revealFirstInput(nameLocators, 12000, page, dialogTracker, 'fill-info-wait-input');
         if (!visibleName) {
-            const errorPath = path.join('test-results', 'err-screenshots', 'customer-info-popup-not-found.png');
+            const errorPath = path.join('test-results', 'report', 'err', 'customer-info-popup-not-found.png');
             if (!page.isClosed()) {
                 await dialogHandler.captureFocusedFailureState(page, errorPath, [
                     ...popupLocators,
@@ -522,7 +522,7 @@ export class CheckoutPage {
         }, dialogTracker);
 
         if (!success) {
-            const errorPath = path.join('test-results', 'err-screenshots', `order-confirmation-popup-click-not-found-${Date.now()}.png`);
+            const errorPath = path.join('test-results', 'report', 'err', `order-confirmation-popup-click-not-found-${Date.now()}.png`);
             await captureOrderConfirmationPopup(page, confirmationPopup, errorPath);
             throw new Error(`Could not complete order. Screenshot: ${errorPath}`);
         }
@@ -533,7 +533,7 @@ export class CheckoutPage {
 
         const completed = await waitForOrderToLeaveConfirmationPopup(page, dialogTracker, ORDER_RESULT_TIMEOUT_MS);
         if (!completed) {
-            const errorPath = path.join('test-results', 'err-screenshots', `order-confirmation-popup-still-open-${Date.now()}.png`);
+            const errorPath = path.join('test-results', 'report', 'err', `order-confirmation-popup-still-open-${Date.now()}.png`);
             await captureOrderConfirmationPopup(page, confirmationPopup, errorPath);
             throw new Error(`Order confirmation popup stayed open after clicking "${viLabels.confirm}". QR/loading may still be blocking order completion. Screenshot: ${errorPath}`);
         }

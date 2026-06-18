@@ -358,7 +358,7 @@ export class InvoicePage {
         preferredPath?: string,
     ): Promise<string> {
         const errorPath = preferredPath
-            ?? path.join('test-results', 'err-screenshots', `${getArtifactName(testInfo)}-invoice-popup-${reason}-${Date.now()}.png`);
+            ?? path.join('test-results', 'report', 'err', `${getArtifactName(testInfo)}-invoice-popup-${reason}-${Date.now()}.png`);
         await fs.mkdir(path.dirname(errorPath), { recursive: true }).catch(() => { });
         await screenshotVisibleElement(locator, errorPath).catch(async () => {
             await screenshotFullElement(locator, errorPath).catch(() => { });
@@ -704,7 +704,7 @@ export class InvoicePage {
         const hasInvoiceError = invoiceErrorRegex.test(combinedText);
         const hasMeaningfulContent = invoiceMeaningfulContentRegex.test(combinedText);
         const targetDir = hasInvoiceError || !hasMeaningfulContent
-            ? path.join('test-results', 'err-screenshots')
+            ? path.join('test-results', 'report', 'err')
             : path.dirname(passScreenshotPath);
         const targetPath = hasInvoiceError || !hasMeaningfulContent
             ? path.join(targetDir, `${getArtifactName(testInfo)}-invoice-popup-error-${Date.now()}.png`)
@@ -754,7 +754,7 @@ export class InvoicePage {
             }
 
             if (invoiceErrorRegex.test(frameText)) {
-                const errorPath = path.join('test-results', 'err-screenshots', `${getArtifactName(testInfo)}-invoice-frame-error-${Date.now()}.png`);
+                const errorPath = path.join('test-results', 'report', 'err', `${getArtifactName(testInfo)}-invoice-frame-error-${Date.now()}.png`);
                 await fs.mkdir(path.dirname(errorPath), { recursive: true }).catch(() => { });
                 await screenshotVisibleElement(body, errorPath).catch(async () => {
                     await screenshotFullElement(body, errorPath).catch(() => { });
@@ -846,7 +846,7 @@ export class InvoicePage {
         if (invoicePopup) {
             const popupText = await getInvoiceTargetText(invoicePopup);
             if (invoiceErrorRegex.test(popupText)) {
-                const errorPath = path.join('test-results', 'err-screenshots', `${getArtifactName(testInfo)}-invoice-popup-error.png`);
+                const errorPath = path.join('test-results', 'report', 'err', `${getArtifactName(testInfo)}-invoice-popup-error.png`);
                 await fs.mkdir(path.dirname(errorPath), { recursive: true }).catch(() => { });
                 await screenshotVisibleElement(invoicePopup, errorPath).catch(() => { });
                 console.log(`Invoice detail popup error detected. Screenshot saved: ${errorPath}`);
@@ -866,7 +866,7 @@ export class InvoicePage {
             try {
                 const locator = page.locator(selector).first();
                 if (await locator.isVisible({ timeout: 1000 }).catch(() => false)) {
-                    const errorPath = path.join('test-results', 'err-screenshots', `${getArtifactName(testInfo)}-invoice-error.png`);
+                    const errorPath = path.join('test-results', 'report', 'err', `${getArtifactName(testInfo)}-invoice-error.png`);
                     await fs.mkdir(path.dirname(errorPath), { recursive: true }).catch(() => { });
                     const errorTarget = await findInvoiceDetailPopup(page);
                     if (errorTarget) {
@@ -1046,7 +1046,7 @@ export class InvoicePage {
             return null;
         }
 
-        const errorPath = path.join('test-results', 'err-screenshots', `${getArtifactName(testInfo)}-processing-stuck-${context}.png`);
+        const errorPath = path.join('test-results', 'report', 'err', `${getArtifactName(testInfo)}-processing-stuck-${context}.png`);
         await fs.mkdir(path.dirname(errorPath), { recursive: true }).catch(() => { });
 
         await processingLocator.evaluate((element) => {
@@ -1078,7 +1078,7 @@ export class InvoicePage {
      * Flow chup invoice pass: thu popup detail, iframe, container lon, roi moi fallback co kiem tra loi.
      */
     async function captureInvoiceScreenshot(page: Page, testInfo: any) {
-        const screenshotDir = path.join('test-results', 'pass-screenshots');
+        const screenshotDir = path.join('test-results', 'report', 'pass');
         // Use a friendly filename with timestamp to avoid collisions
         const timestamp = Date.now();
         const screenshotPath = path.join(screenshotDir, `${getArtifactName(testInfo)}-invoice-${timestamp}.png`);
@@ -1234,7 +1234,7 @@ export class InvoicePage {
             const errorText = await readBodyText(page, dialogTracker, 'early-page-error-check');
             if (errorText && invoiceErrorRegex.test(errorText)) {
                 console.warn(`WARN Early page error detected: ${errorText.slice(0, 200)}`);
-                const errorPath = path.join('test-results', 'err-screenshots', `${getArtifactName(testInfo)}-early-error.png`);
+                const errorPath = path.join('test-results', 'report', 'err', `${getArtifactName(testInfo)}-early-error.png`);
                 await fs.mkdir(path.dirname(errorPath), { recursive: true });
                 await page.screenshot({ path: errorPath, fullPage: false });
                 return errorPath;
@@ -1259,7 +1259,7 @@ export class InvoicePage {
             const pageText = await readBodyText(page, dialogTracker, `api-error-check-${stepName}`);
             if (pageText && invoiceErrorRegex.test(pageText)) {
                 console.warn(`WARN API error detected at step "${stepName}"`);
-                const errorPath = path.join('test-results', 'err-screenshots', `${getArtifactName(testInfo)}-api-error-${stepName}.png`);
+                const errorPath = path.join('test-results', 'report', 'err', `${getArtifactName(testInfo)}-api-error-${stepName}.png`);
                 await fs.mkdir(path.dirname(errorPath), { recursive: true });
                 await page.screenshot({ path: errorPath, fullPage: false });
                 console.log(`WARN API error screenshot saved: ${errorPath}`);
@@ -1381,7 +1381,7 @@ export class InvoicePage {
             } else if (errorMsg.includes('has been closed') || errorMsg.includes('Target page') || page.isClosed()) {
                 console.warn('WARN Page/context closed during invoice capture; skipping error screenshot');
             } else {
-                const errorPath = path.join('test-results', 'err-screenshots', `${getArtifactName(testInfo)}-invoice-error.png`);
+                const errorPath = path.join('test-results', 'report', 'err', `${getArtifactName(testInfo)}-invoice-error.png`);
                 if (!page.isClosed()) {
                     try {
                         await fs.mkdir(path.dirname(errorPath), { recursive: true });

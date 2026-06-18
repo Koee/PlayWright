@@ -1,3 +1,5 @@
+/// <reference path="./k6.d.ts" />
+
 import http from 'k6/http';
 import { check } from 'k6';
 import { Counter, Rate } from 'k6/metrics';
@@ -79,12 +81,32 @@ type MlblGiftOrderComboCache = {
     }>;
 }
 
+type K6SummaryMetric = {
+    values?: Record<string, number | undefined>;
+    thresholds?: Record<string, { ok?: boolean }>;
+};
+
+type K6SummaryData = {
+    metrics: Record<string, K6SummaryMetric | undefined>;
+};
+
 function resolveProjectPath(filePath: string) {
     if (/^[A-Za-z]:[\\/]/.test(filePath) || filePath.startsWith('/') || filePath.startsWith('./') || filePath.startsWith('../')) {
         return filePath;
     }
 
     return `../../${filePath}`;
+}
+
+function getEnvValue(names: string[], fallback: string) {
+    for (const name of names) {
+        const value = __ENV[name];
+        if (value !== undefined && value !== '') {
+            return value;
+        }
+    }
+
+    return fallback;
 }
 
 function matchesSelector(value: Record<string, unknown>, selector: MlblGiftOrderSelector | undefined) {
@@ -105,34 +127,22 @@ function matchesSelector(value: Record<string, unknown>, selector: MlblGiftOrder
     });
 }
 
-function getRequestedGiftQuantity(selector: MlblGiftOrderSelector | undefined) {
-    if (selector?.soLuong === undefined) {
-        return undefined;
-    }
-
-    if (!Number.isFinite(selector.soLuong) || selector.soLuong <= 0) {
-        throw new Error(`giftSelector.soLuong must be a positive number. Current value: ${selector.soLuong}`);
-    }
-
-    return selector.soLuong;
-}
-
-function getScenarioGiftQuantity(sourceData: MlblGiftOrderData) {
-    return sourceData.giftSelector?.soLuong ?? sourceData.giftQuantity;
-}
-
 function scaleScenarioQuantities(
     products: MlblGiftOrderProduct[],
     gifts: MlblGiftOrderGift[],
     giftSelector: MlblGiftOrderSelector | undefined,
     rule: MlblGiftOrderComboRule | undefined,
 ) {
-    const requestedGiftQuantity = getRequestedGiftQuantity(giftSelector);
+    const requestedGiftQuantity = giftSelector?.soLuong;
     if (requestedGiftQuantity === undefined || gifts.length === 0) {
         return {
             products,
             gifts,
         };
+    }
+
+    if (!Number.isFinite(requestedGiftQuantity) || requestedGiftQuantity <= 0) {
+        throw new Error(`giftSelector.soLuong must be a positive number. Current value: ${requestedGiftQuantity}`);
     }
 
     const baseProductQuantity = rule?.requiredProductQuantity ?? products[0]?.soLuong;
@@ -165,7 +175,7 @@ function resolveScenario(sourceData: MlblGiftOrderData) {
             [sourceData.combo.gift],
             {
                 ...sourceData.giftSelector,
-                soLuong: getScenarioGiftQuantity(sourceData),
+                soLuong: sourceData.giftSelector?.soLuong ?? sourceData.giftQuantity,
             },
             sourceData.combo.rule,
         );
@@ -212,6 +222,15 @@ const data = JSON.parse(open(dataPath).replace(/^\uFEFF/, '')) as MlblGiftOrderD
 const scenario = resolveScenario(data);
 const baseUrl = __ENV.K6_MLBL_BASE_URL || 'https://si.timdaythay.com/';
 const apiUrl = resolveApiUrl(baseUrl, data.apiPath);
+const orderToken = getEnvValue(['MLBL_GIFT_ORDER_TOKEN'], data.token);
+const customerName = getEnvValue(['MLBL_GIFT_ORDER_CUSTOMER_NAME', 'K6_CUSTOMER_NAME'], data.customer.name);
+const customerPhone = getEnvValue(['MLBL_GIFT_ORDER_CUSTOMER_PHONE', 'K6_CUSTOMER_PHONE'], data.customer.phone);
+const customerAddress = getEnvValue(['MLBL_GIFT_ORDER_CUSTOMER_ADDRESS', 'K6_CUSTOMER_ADDRESS'], data.customer.address);
+const giftReceiverName = getEnvValue(['MLBL_GIFT_ORDER_GIFT_RECEIVER_NAME', 'K6_GIFT_RECEIVER_NAME'], customerName);
+const giftReceiverPhone = getEnvValue(['MLBL_GIFT_ORDER_GIFT_RECEIVER_PHONE', 'K6_GIFT_RECEIVER_PHONE'], customerPhone);
+const orderBuyerName = getEnvValue(['MLBL_GIFT_ORDER_BUYER_NAME', 'K6_BUYER_NAME'], customerName);
+const orderBuyerPhone = getEnvValue(['MLBL_GIFT_ORDER_BUYER_PHONE', 'K6_BUYER_PHONE'], customerPhone);
+const paymentMethod = getEnvValue(['MLBL_GIFT_ORDER_PAYMENT_METHOD'], data.paymentMethod);
 const totalOrders = Number(__ENV.K6_TOTAL_ORDERS || 20);
 const ratePerSecond = Number(__ENV.K6_RATE_PER_SECOND || 5);
 const maxVus = Number(__ENV.K6_MAX_VUS || 20);
@@ -346,14 +365,18 @@ function buildPayload(orderNo: number, vuNumber: number, scenarioIteration: numb
     return {
         orderCode,
         body: JSON.stringify({
-            _token: __ENV.MLBL_GIFT_ORDER_TOKEN || data.token,
+            _token: orderToken,
             action: 'insertOrder',
             orderData: {
                 orderCode,
-                customerName: __ENV.K6_CUSTOMER_NAME || data.customer.name,
-                customerPhone: __ENV.K6_CUSTOMER_PHONE || data.customer.phone,
-                customerAddress: __ENV.K6_CUSTOMER_ADDRESS || data.customer.address,
-                paymentMethod: __ENV.MLBL_GIFT_ORDER_PAYMENT_METHOD || data.paymentMethod,
+                customerName,
+                customerPhone,
+                customerAddress,
+                giftReceiverName,
+                giftReceiverPhone,
+                orderBuyerName,
+                orderBuyerPhone,
+                paymentMethod,
                 ...data.staff,
                 ...data.targetGroup,
                 products,
@@ -456,7 +479,7 @@ export default function () {
     failedOrders.add(!validation.ok || !ok);
 }
 
-export function handleSummary(data) {
+export function handleSummary(data: K6SummaryData) {
     const httpReqs = data.metrics.http_reqs?.values?.count || 0;
     const droppedIterations = data.metrics.dropped_iterations?.values?.count || 0;
     const p95Duration = data.metrics.http_req_duration?.values?.['p(95)'];
@@ -485,10 +508,8 @@ export function handleSummary(data) {
                 ? 'Some iterations were dropped because the configured rate needs more VUs/server capacity than available.'
                 : 'No dropped iterations.',
         }, null, 2),
-        [`test-results/k6/${reportBaseName}-summary.json`]: rawSummary,
-        [`test-results/k6/${reportBaseName}-report.json`]: reportJson,
-        [`test-results/k6/${reportBaseName}-report.md`]: reportMarkdown,
-        [`test-results/k6/${reportBaseName}-error-report.json`]: reportJson,
-        [`test-results/k6/${reportBaseName}-error-report.md`]: reportMarkdown,
+        [`test-results/report/k6/${reportBaseName}-summary.json`]: rawSummary,
+        [`test-results/report/k6/${reportBaseName}-report.json`]: reportJson,
+        [`test-results/report/k6/${reportBaseName}-report.md`]: reportMarkdown,
     };
 }

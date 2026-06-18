@@ -51,7 +51,7 @@ function buildSampleScenario(productQuantity = sampleProduct.soLuong) {
     };
 }
 
-test.describe('MLBL Gift Order API - SI', () => {
+test.describe('API Checkout Gift Order - SI', () => {
     test.skip(({ browserName }) => browserName !== 'chromium', 'MLBL SI smoke uses the default Chromium project browser.');
 
     test('should send order detail payload for product and gift @checkout @mlbl-gift-order', async ({}, testInfo) => {
@@ -138,6 +138,10 @@ test.describe('MLBL Gift Order API - SI', () => {
 
         expect(payload.orderData.customerName).toBe(scenario.customer.name);
         expect(payload.orderData.customerPhone).toBe(scenario.customer.phone);
+        expect(payload.orderData.giftReceiverName).toBe(scenario.customer.name);
+        expect(payload.orderData.giftReceiverPhone).toBe(scenario.customer.phone);
+        expect(payload.orderData.orderBuyerName).toBe(scenario.customer.name);
+        expect(payload.orderData.orderBuyerPhone).toBe(scenario.customer.phone);
     });
 
     test('should calculate SI gift-order totals like the website order @checkout @mlbl-gift-order', async ({}, testInfo) => {

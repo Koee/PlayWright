@@ -301,8 +301,8 @@ const waitForCatalogReady = async (
  * Create test-results directories if they don't exist
  */
 async function ensureScreenshotDirectories() {
-    const passDir = path.join('test-results', 'pass-screenshots');
-    const errDir = path.join('test-results', 'err-screenshots');
+    const passDir = path.join('test-results', 'report', 'pass');
+    const errDir = path.join('test-results', 'report', 'err');
     await fs.mkdir(passDir, { recursive: true });
     await fs.mkdir(errDir, { recursive: true });
     console.log(`Screenshot directories ready: ${passDir}, ${errDir}`);
@@ -1009,7 +1009,7 @@ async function readAndSaveClipboardContentOnly(
 
     const copiedText = clipboardContent.text || clipboardContent.html;
     // Pass output directory for the original copy-functionality.spec flow.
-    const outputDir = path.join('test-results', 'pass-screenshots');
+    const outputDir = path.join('test-results', 'report', 'pass');
     await fs.mkdir(outputDir, { recursive: true });
 
     let textPath: string | null = null;
@@ -1113,7 +1113,7 @@ async function readAndSaveClipboardContentAsBaseName(
 
     const copiedText = clipboardContent.text || clipboardContent.html;
     // Pass output directory for project stage copies: NDS, XNDH, TTDH.
-    const outputDir = path.join('test-results', 'pass-screenshots');
+    const outputDir = path.join('test-results', 'report', 'pass');
     await fs.mkdir(outputDir, { recursive: true });
 
     let textPath: string | null = null;
@@ -1199,9 +1199,9 @@ async function takeAndSaveScreenshot(
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
         const fileName = `${websiteName}-${tabDisplayName}-NDS.png`;
 
-        // Failure screenshots go to err-screenshots; success screenshots go to pass-screenshots.
-        const folderName = isSuccess ? 'pass-screenshots' : 'err-screenshots';
-        const filePath = path.join('test-results', folderName, fileName);
+        // Failure screenshots go to report/err; success screenshots go to report/pass.
+        const folderName = isSuccess ? 'pass' : 'err';
+        const filePath = path.join('test-results', 'report', folderName, fileName);
 
         await fs.mkdir(path.dirname(filePath), { recursive: true });
 

@@ -13,11 +13,11 @@ import {
     QR_READY_TIMEOUT_MS,
 } from '../../../config/test.config';
 
-test.describe('Checkout API Performance - All Websites', () => {
+test.describe('API Checkout Performance - All Websites', () => {
     // Flow guest/no-login: website cho phep mua truc tiep, khong can token.
     // UI chi dung de detect request dat hang that, sau do tao don bang API theo batch.
     // Run:
-    // npx playwright test tests/api/checkout/checkout-api-performance.spec.ts --grep "@api-performance-guest" --project=si
+    // npx playwright test tests/api/checkout/api-checkout-performance.spec.ts --grep "@api-performance-guest" --project=si
     test(`should create ${API_PERFORMANCE_CHECKOUT_ORDER_COUNT} guest checkout orders by detected API batch @checkout @api-performance-guest`, async ({ page }, testInfo) => {
         test.setTimeout(QR_READY_TIMEOUT_MS + API_PERFORMANCE_CHECKOUT_ORDER_COUNT * 3000);
 
@@ -44,7 +44,7 @@ test.describe('Checkout API Performance - All Websites', () => {
     // Env can co: CHECKOUT_API_LOGIN_URL, CHECKOUT_API_LOGIN_BODY, CHECKOUT_API_TOKEN_PATH.
     // Mac dinh tao 200 don voi batch 20 request/luc de tranh mo nhieu UI gay treo may.
     // Run:
-    // npx playwright test tests/api/checkout/checkout-api-performance.spec.ts --grep "@api-performance-login" --project=si
+    // npx playwright test tests/api/checkout/api-checkout-performance.spec.ts --grep "@api-performance-login" --project=si
     test(`should create ${API_PERFORMANCE_CHECKOUT_ORDER_COUNT} login checkout orders by detected API batch @checkout @api-performance-login`, async ({ page }, testInfo) => {
         test.setTimeout(QR_READY_TIMEOUT_MS + API_PERFORMANCE_CHECKOUT_ORDER_COUNT * 3000);
 

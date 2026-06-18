@@ -124,7 +124,7 @@ function resolveProjectAndTemplate() {
 const { projectName, templatePath } = showVersion
     ? { projectName: process.env.K6_PROJECT_NAME || 'version-check', templatePath: '' }
     : resolveProjectAndTemplate();
-const outputPath = explicitOutputPath || path.join('test-results', 'k6', `${projectName}-${mode}-checkout-order-load-metrics.json`);
+const outputPath = explicitOutputPath || path.join('test-results', 'report', 'k6', `${projectName}-${mode}-checkout-order-load-metrics.json`);
 
 function resolveProjectPath(filePath) {
     if (path.isAbsolute(filePath)) {
@@ -234,7 +234,7 @@ if (writeJson) {
 }
 args.push(k6CompiledEntry);
 
-fs.mkdirSync(path.join(rootDir, 'test-results', 'k6'), { recursive: true });
+fs.mkdirSync(path.join(rootDir, 'test-results', 'report', 'k6'), { recursive: true });
 
 console.log([
     `k6 checkout mode: ${env.K6_CHECKOUT_MODE}`,

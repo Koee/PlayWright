@@ -689,8 +689,8 @@ async function exportCheckoutApiDetectionFailureReport(
 ) {
     const timestamp = Date.now();
     const baseName = `${safeFilePart(testInfo.project.name)}-${mode}-checkout-api-detection-failure-${timestamp}`;
-    const screenshotPath = path.resolve(process.cwd(), 'test-results', 'err-screenshots', `${baseName}.png`);
-    const reportDir = path.resolve(process.cwd(), 'test-results', 'api-performance');
+    const screenshotPath = path.resolve(process.cwd(), 'test-results', 'report', 'err', `${baseName}.png`);
+    const reportDir = path.resolve(process.cwd(), 'test-results', 'report', 'api-performance');
     const jsonPath = path.join(reportDir, `${baseName}.json`);
     const markdownPath = path.join(reportDir, `${baseName}.md`);
 
@@ -1008,7 +1008,7 @@ function summarizeApiOrderResults(results: ApiOrderResult[], totalOrders: number
 }
 
 /**
- * Ghi report API performance ra test-results de tester doc lai sau khi run.
+ * Ghi report API performance ra test-results/report de tester doc lai sau khi run.
  * JSON dung de debug chi tiet, Markdown dung de doc nhanh.
  */
 export async function exportCheckoutApiPerformanceReport(
@@ -1019,7 +1019,7 @@ export async function exportCheckoutApiPerformanceReport(
     totalOrders: number,
     batchSize: number,
 ) {
-    const reportDir = path.resolve(process.cwd(), 'test-results', 'api-performance');
+    const reportDir = path.resolve(process.cwd(), 'test-results', 'report', 'api-performance');
     const baseName = `${testInfo.project.name}-${mode}-checkout-api-performance-report`;
     const jsonPath = path.join(reportDir, `${baseName}.json`);
     const markdownPath = path.join(reportDir, `${baseName}.md`);

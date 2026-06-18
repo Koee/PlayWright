@@ -2,7 +2,7 @@ Muc tieu:
 - Dua SKU san pham, so luong san pham, SKU qua tang, so luong qua tang vao mot file config nho de de chinh.
 
 Pham vi:
-- tests/api/checkout/mlbl-gift-order-api.spec.ts
+- tests/api/checkout/api-checkout-gift-order.spec.ts
 - components/helpers/mlbl-gift-order-payload.ts
 - test-data/json/mlbl-gift-order-config.json
 
@@ -17,4 +17,4 @@ Huong sua:
 - Helper doc config va ap dung thanh so luong cuoi cung trong resolved scenario/payload.
 
 Verify:
-- npx playwright test tests/api/checkout/mlbl-gift-order-api.spec.ts --project=si --grep "config"
+- npx playwright test tests/api/checkout/api-checkout-gift-order.spec.ts --project=si --grep "config"

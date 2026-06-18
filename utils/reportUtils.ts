@@ -2,13 +2,13 @@ import path from 'path';
 import fs from 'fs/promises';
 
 /**
- * Ghi report loi vao test-results/report-loi.md, report-loi.json va report-loi.csv.
+ * Ghi report loi vao test-results/report/err/report-loi.md, report-loi.json va report-loi.csv.
  * Cac flow checkout/copy goi ham nay trong catch block de intern co noi xem loi tap trung.
  */
 export async function appendErrorReport(websiteName: string, error: any, screenshotPath?: string) {
     try {
         // Use absolute path based on current working directory
-        const reportDir = path.resolve(process.cwd(), 'test-results');
+        const reportDir = path.resolve(process.cwd(), 'test-results', 'report', 'err');
         const reportPath = path.join(reportDir, 'report-loi.md');
         await fs.mkdir(reportDir, { recursive: true });
         console.log(`📁 Report directory: ${reportDir}`);

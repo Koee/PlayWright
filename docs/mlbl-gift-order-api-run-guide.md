@@ -3,7 +3,7 @@
 Tai lieu nay huong dan cach chay spec:
 
 ```text
-tests/api/checkout/mlbl-gift-order-api.spec.ts
+tests/api/checkout/api-checkout-gift-order.spec.ts
 ```
 
 Flow hien tai ap dung cho project `si`.
@@ -45,7 +45,7 @@ Luu y: `giftSku` phai ton tai trong data combo hien co. Neu config gift khong kh
 Dung lenh nay de verify logic build payload, resolve SKU/quantity, va tinh gia live mock:
 
 ```powershell
-npx playwright test tests/api/checkout/mlbl-gift-order-api.spec.ts --project=si --grep-invert "create an SI order"
+npx playwright test tests/api/checkout/api-checkout-gift-order.spec.ts --project=si --grep-invert "create an SI order"
 ```
 
 Lenh nay khong goi API tao don that.
@@ -55,7 +55,7 @@ Lenh nay khong goi API tao don that.
 Dung lenh nay khi muon chay dung flow thuc te:
 
 ```powershell
-npx playwright test tests/api/checkout/mlbl-gift-order-api.spec.ts --project=si --grep "create an SI order"
+npx playwright test tests/api/checkout/api-checkout-gift-order.spec.ts --project=si --grep "create an SI order"
 ```
 
 Flow se:
@@ -155,13 +155,13 @@ Chi nen chay sau khi da hieu ro data k6 dang doc. Hien flow Playwright live la d
 Khi doi SKU/quantity:
 
 ```powershell
-npx playwright test tests/api/checkout/mlbl-gift-order-api.spec.ts --project=si --grep-invert "create an SI order"
+npx playwright test tests/api/checkout/api-checkout-gift-order.spec.ts --project=si --grep-invert "create an SI order"
 ```
 
 Sau khi logic pass, chay live 1 don:
 
 ```powershell
-npx playwright test tests/api/checkout/mlbl-gift-order-api.spec.ts --project=si --grep "create an SI order"
+npx playwright test tests/api/checkout/api-checkout-gift-order.spec.ts --project=si --grep "create an SI order"
 ```
 
 Sau khi co report/template moi, moi tinh toi k6 smoke neu can.

@@ -1,3 +1,5 @@
+/// <reference path="./k6.d.ts" />
+
 import http from 'k6/http';
 import { check } from 'k6';
 import { Counter, Rate } from 'k6/metrics';
@@ -204,15 +206,15 @@ export function handleSummary(data) {
                 ? 'Some iterations were dropped because the configured rate needs more VUs/server capacity than available.'
                 : 'No dropped iterations.',
         }, null, 2),
-        [`test-results/k6/${reportBaseName}-summary.json`]: rawSummary,
-        [`test-results/k6/${reportBaseName}-report.json`]: reportJson,
-        [`test-results/k6/${reportBaseName}-report.md`]: reportMarkdown,
-        [`test-results/k6/${reportBaseName}-error-report.json`]: reportJson,
-        [`test-results/k6/${reportBaseName}-error-report.md`]: reportMarkdown,
-        'test-results/k6/checkout-order-load-summary.json': rawSummary,
-        'test-results/k6/checkout-order-load-report.json': reportJson,
-        'test-results/k6/checkout-order-load-report.md': reportMarkdown,
-        'test-results/k6/checkout-order-load-error-report.json': reportJson,
-        'test-results/k6/checkout-order-load-error-report.md': reportMarkdown,
+        [`test-results/report/k6/${reportBaseName}-summary.json`]: rawSummary,
+        [`test-results/report/k6/${reportBaseName}-report.json`]: reportJson,
+        [`test-results/report/k6/${reportBaseName}-report.md`]: reportMarkdown,
+        [`test-results/report/k6/${reportBaseName}-error-report.json`]: reportJson,
+        [`test-results/report/k6/${reportBaseName}-error-report.md`]: reportMarkdown,
+        'test-results/report/k6/checkout-order-load-summary.json': rawSummary,
+        'test-results/report/k6/checkout-order-load-report.json': reportJson,
+        'test-results/report/k6/checkout-order-load-report.md': reportMarkdown,
+        'test-results/report/k6/checkout-order-load-error-report.json': reportJson,
+        'test-results/report/k6/checkout-order-load-error-report.md': reportMarkdown,
     };
 }
