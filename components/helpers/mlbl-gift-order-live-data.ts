@@ -31,6 +31,8 @@ function normalizeText(value: unknown) {
     return String(value ?? '')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\u0111/g, 'd')
+        .replace(/\u0110/g, 'D')
         .replace(/Ä‘/g, 'd')
         .replace(/Ä/g, 'D')
         .replace(/\s+/g, ' ')
@@ -229,6 +231,8 @@ async function selectTopGiftOptionAndCaptureLiveData(
         const normalize = (value: unknown) => String(value ?? '')
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\u0111/g, 'd')
+            .replace(/\u0110/g, 'D')
             .replace(/Ä‘/g, 'd')
             .replace(/Ä/g, 'D')
             .replace(/\s+/g, ' ')
@@ -381,8 +385,6 @@ async function selectTopGiftOptionAndCaptureLiveData(
                 return undefined;
             }
 
-            action.click();
-
             const resolvedGiftSku = findGiftSku(searchableText);
             const resolvedProductSku = findProductSku(attributeText, text);
             return {
@@ -490,10 +492,15 @@ export async function captureMlblGiftOrderLiveDataFromPage(
     const fallbackProduct = data.combo?.product;
     let topOptionLiveData = await selectTopGiftOptionAndCaptureLiveData(page, config);
     if (!topOptionLiveData || !('product' in topOptionLiveData) || !topOptionLiveData.product) {
-        await page.getByRole('button', { name: /Chá»n phÆ°Æ¡ng Ã¡n nÃ y|Chon phuong an nay/i })
+        await page.locator('button')
+            .filter({ hasText: /Qu\u00e0 T\u1eb7ng|Qua Tang/i })
             .first()
             .click({ timeout: 5000 })
             .catch(() => { });
+        await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => { });
+        topOptionLiveData = await selectTopGiftOptionAndCaptureLiveData(page, config);
+    }
+    if (!topOptionLiveData || !('product' in topOptionLiveData) || !topOptionLiveData.product) {
         const rawText = await page.locator('body').innerText({ timeout: MLBL_LIVE_PRICE_CAPTURE_TIMEOUT_MS }).catch(() => '');
         const textProduct = findTopOptionProductDataInText(rawText, config.productSku);
         const textGift = findTopOptionGiftDataInText(rawText, config.giftSku);

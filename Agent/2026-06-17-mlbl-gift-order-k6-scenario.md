@@ -5,7 +5,7 @@ Muc tieu:
 
 Pham vi:
 - Doc/sua `performance/k6/mlbl-gift-order-load.ts`.
-- Them regression check nho trong `tests/api/checkout/mlbl-gift-order-api.spec.ts` neu can.
+- Them regression check nho trong `tests/api/checkout/api-checkout-gift-order.spec.ts` neu can.
 - Cap nhat `docs/repo-command-guide.md` chi khi guide thieu cach chay/verify cho flow k6 MLBL.
 
 Khong lam:

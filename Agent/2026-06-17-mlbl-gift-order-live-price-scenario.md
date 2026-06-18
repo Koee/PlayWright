@@ -4,7 +4,7 @@ Muc tieu:
 Pham vi:
 - components/helpers/mlbl-gift-order-payload.ts
 - steps/mlbl-gift-order.steps.ts
-- tests/api/checkout/mlbl-gift-order-api.spec.ts
+- tests/api/checkout/api-checkout-gift-order.spec.ts
 - test-data/json/mlbl-gift-order-config.json
 
 Khong lam:
@@ -18,5 +18,5 @@ Huong sua:
 - Khi tao don API, bat buoc co gia live neu config bat livePricing.
 
 Verify:
-- npx playwright test tests/api/checkout/mlbl-gift-order-api.spec.ts --project=si --grep-invert "create an SI order"
+- npx playwright test tests/api/checkout/api-checkout-gift-order.spec.ts --project=si --grep-invert "create an SI order"
 - npm run typecheck

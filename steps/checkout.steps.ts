@@ -190,7 +190,7 @@ export async function completeCheckoutFlow(page: Page, testInfo: TestInfo, optio
         console.error(`\nERROR Error during checkout for ${artifactName}:`, errorForReport);
 
         // Checkout failure screenshot file name and save location.
-        const errorScreenshot = path.resolve(process.cwd(), 'test-results', 'err-screenshots', `${artifactName}_error.png`);
+        const errorScreenshot = path.resolve(process.cwd(), 'test-results', 'report', 'err', `${artifactName}_error.png`);
         let screenshotSaved = false;
         let screenshotPathForReport: string | undefined;
         const errorMessage = errorForReport.message || '';
@@ -231,7 +231,7 @@ export async function completeCheckoutFlow(page: Page, testInfo: TestInfo, optio
                     screenshotSaved = true;
                 }
                 // Relative screenshot path written into report-loi.* files.
-                screenshotPathForReport = screenshotPathForReport || path.join('test-results', 'err-screenshots', `${artifactName}_error.png`);
+                screenshotPathForReport = screenshotPathForReport || path.join('test-results', 'report', 'err', `${artifactName}_error.png`);
             } catch (screenshotError) {
                 console.warn(`WARN Could not take failure screenshot: ${(screenshotError as Error).message}`);
             }

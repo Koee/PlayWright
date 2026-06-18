@@ -158,6 +158,10 @@ export type MlblGiftOrderPayload = {
         customerName: string;
         customerPhone: string;
         customerAddress: string;
+        giftReceiverName: string;
+        giftReceiverPhone: string;
+        orderBuyerName: string;
+        orderBuyerPhone: string;
         paymentMethod: string;
         staffName: string;
         staffCode: string;
@@ -541,15 +545,25 @@ export function buildMlblGiftOrderPayload(
         tienSauKM: product.giaSauKM * product.soLuong,
     }));
     const totals = calculateMlblGiftOrderTotals(products, scenario.gifts, data);
+    const customerName = process.env.MLBL_GIFT_ORDER_CUSTOMER_NAME ?? data.customer.name;
+    const customerPhone = process.env.MLBL_GIFT_ORDER_CUSTOMER_PHONE ?? data.customer.phone;
+    const giftReceiverName = process.env.MLBL_GIFT_ORDER_GIFT_RECEIVER_NAME ?? customerName;
+    const giftReceiverPhone = process.env.MLBL_GIFT_ORDER_GIFT_RECEIVER_PHONE ?? customerPhone;
+    const orderBuyerName = process.env.MLBL_GIFT_ORDER_BUYER_NAME ?? customerName;
+    const orderBuyerPhone = process.env.MLBL_GIFT_ORDER_BUYER_PHONE ?? customerPhone;
 
     return {
         _token: process.env.MLBL_GIFT_ORDER_TOKEN || data.token,
         action: 'insertOrder',
         orderData: {
             orderCode: generateMlblGiftOrderCode(data.orderCodePrefix),
-            customerName: process.env.MLBL_GIFT_ORDER_CUSTOMER_NAME ?? data.customer.name,
-            customerPhone: process.env.MLBL_GIFT_ORDER_CUSTOMER_PHONE ?? data.customer.phone,
+            customerName,
+            customerPhone,
             customerAddress: process.env.MLBL_GIFT_ORDER_CUSTOMER_ADDRESS ?? data.customer.address,
+            giftReceiverName,
+            giftReceiverPhone,
+            orderBuyerName,
+            orderBuyerPhone,
             paymentMethod: process.env.MLBL_GIFT_ORDER_PAYMENT_METHOD || data.paymentMethod,
             ...data.staff,
             ...data.targetGroup,

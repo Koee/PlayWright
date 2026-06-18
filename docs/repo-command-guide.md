@@ -51,7 +51,7 @@ Muc dich: chay flow checkout UI, in phieu/capture invoice.
 ### Lenh run
 
 ```powershell
-npm run test:checkout -- --project=si
+npm run test:checkout-invoice -- --project=si
 ```
 
 Hoac chay truc tiep:
@@ -85,13 +85,13 @@ Muc dich: kiem tra copy QR/content/clipboard.
 ### Lenh run
 
 ```powershell
-npm run test:copy -- --project=si
+npm run test:copy-qr -- --project=si
 ```
 
 Hoac:
 
 ```powershell
-npx playwright test tests/ui/checkout/copy-functionality.spec.ts --project=si
+npx playwright test tests/ui/checkout/copy-qr-content.spec.ts --project=si
 ```
 
 ### Report
@@ -119,19 +119,19 @@ PERFORMANCE_CHECKOUT_ORDER_COUNT
 Chay ca sequential va performance:
 
 ```powershell
-npm run test:ui-bulk -- --project=si
+npm run test:checkout-bulk -- --project=si
 ```
 
 Chi chay sequential:
 
 ```powershell
-npx playwright test tests/ui/checkout/checkout-bulk-flow.spec.ts --grep "@sequential" --project=si
+npx playwright test tests/ui/checkout/checkout-bulk-orders.spec.ts --grep "@sequential" --project=si
 ```
 
 Chi chay performance UI:
 
 ```powershell
-npx playwright test tests/ui/checkout/checkout-bulk-flow.spec.ts --grep "@performance" --project=si
+npx playwright test tests/ui/checkout/checkout-bulk-orders.spec.ts --grep "@performance" --project=si
 ```
 
 ### Report
@@ -197,34 +197,34 @@ CHECKOUT_API_TOKEN_PREFIX
 ### Lenh run guest
 
 ```powershell
-npm run test:api-performance:guest -- --project=si
+npm run test:api-checkout-performance:guest -- --project=si
 ```
 
 Hoac:
 
 ```powershell
-npx playwright test tests/api/checkout/checkout-api-performance.spec.ts --grep "@api-performance-guest" --project=si
+npx playwright test tests/api/checkout/api-checkout-performance.spec.ts --grep "@api-performance-guest" --project=si
 ```
 
 ### Lenh run login
 
 ```powershell
-npm run test:api-performance:login -- --project=si
+npm run test:api-checkout-performance:login -- --project=si
 ```
 
 Hoac:
 
 ```powershell
-npx playwright test tests/api/checkout/checkout-api-performance.spec.ts --grep "@api-performance-login" --project=si
+npx playwright test tests/api/checkout/api-checkout-performance.spec.ts --grep "@api-performance-login" --project=si
 ```
 
 ### Report
 
 ```text
 playwright-report
-test-results/api-performance/<project>-<mode>-checkout-api-performance-report.md
-test-results/api-performance/<project>-<mode>-checkout-api-performance-report.json
-test-results/err-screenshots
+test-results/report/api-performance/<project>-<mode>-checkout-api-performance-report.md
+test-results/report/api-performance/<project>-<mode>-checkout-api-performance-report.json
+test-results/report/err
 ```
 
 ## Kich ban tao template cho k6 checkout
@@ -241,25 +241,25 @@ Muc dich: mo UI mot lan, detect checkout API, smoke tao 1 don bang API, sau do x
 ### Lenh run guest
 
 ```powershell
-npm run test:api-template:guest -- --project=si
+npm run test:api-checkout-k6-template:guest -- --project=si
 ```
 
 Hoac:
 
 ```powershell
-npx playwright test tests/api/checkout/checkout-api-template.spec.ts --grep "@api-template-guest" --project=si
+npx playwright test tests/api/checkout/api-checkout-k6-template.spec.ts --grep "@api-template-guest" --project=si
 ```
 
 ### Lenh run login
 
 ```powershell
-npm run test:api-template:login -- --project=si
+npm run test:api-checkout-k6-template:login -- --project=si
 ```
 
 Hoac:
 
 ```powershell
-npx playwright test tests/api/checkout/checkout-api-template.spec.ts --grep "@api-template-login" --project=si
+npx playwright test tests/api/checkout/api-checkout-k6-template.spec.ts --grep "@api-template-login" --project=si
 ```
 
 ### Output
@@ -267,7 +267,7 @@ npx playwright test tests/api/checkout/checkout-api-template.spec.ts --grep "@ap
 ```text
 test-data/k6/<project>-guest-checkout-order-api-template.json
 test-data/k6/<project>-login-checkout-order-api-template.json
-test-results/api-performance
+test-results/report/api-performance
 playwright-report
 ```
 
@@ -278,7 +278,7 @@ Muc dich: replay checkout API bang k6 tu template da tao.
 ### Setup
 
 - Can k6 binary tai `tools/k6/k6.exe`.
-- Phai tao template truoc bang `checkout-api-template.spec.ts`.
+- Phai tao template truoc bang `api-checkout-k6-template.spec.ts`.
 - Default so don/rate lay tu `config/test.config.ts`:
 
 ```text
@@ -340,10 +340,10 @@ node scripts/run-k6-checkout.js --mode guest --project si --json
 ### Report
 
 ```text
-test-results/k6/<project>-<mode>-checkout-order-load-report.md
-test-results/k6/<project>-<mode>-checkout-order-load-report.json
-test-results/k6/<project>-<mode>-checkout-order-load-metrics.json
-test-results/k6/<project>-<mode>-checkout-order-load-summary.json
+test-results/report/k6/<project>-<mode>-checkout-order-load-report.md
+test-results/report/k6/<project>-<mode>-checkout-order-load-report.json
+test-results/report/k6/<project>-<mode>-checkout-order-load-metrics.json
+test-results/report/k6/<project>-<mode>-checkout-order-load-summary.json
 ```
 
 ## Chay nhieu kich ban lien tiep
@@ -353,7 +353,7 @@ Khuyen nghi chay tuan tu de tranh tranh tai nguyen va ghi de report.
 ### UI invoice + copy function
 
 ```powershell
-npx playwright test tests/ui/checkout/invoice.spec.ts tests/ui/checkout/copy-functionality.spec.ts --project=si
+npx playwright test tests/ui/checkout/invoice.spec.ts tests/ui/checkout/copy-qr-content.spec.ts --project=si
 ```
 
 ### UI smoke truoc, k6 100 don sau
@@ -361,13 +361,13 @@ npx playwright test tests/ui/checkout/invoice.spec.ts tests/ui/checkout/copy-fun
 Buoc 1: kiem tra UI invoice va copy.
 
 ```powershell
-npx playwright test tests/ui/checkout/invoice.spec.ts tests/ui/checkout/copy-functionality.spec.ts --project=si
+npx playwright test tests/ui/checkout/invoice.spec.ts tests/ui/checkout/copy-qr-content.spec.ts --project=si
 ```
 
 Buoc 2: tao template cho k6.
 
 ```powershell
-npx playwright test tests/api/checkout/checkout-api-template.spec.ts --grep "@api-template-guest" --project=si
+npx playwright test tests/api/checkout/api-checkout-k6-template.spec.ts --grep "@api-template-guest" --project=si
 ```
 
 Buoc 3: chay k6 100 don.
@@ -394,10 +394,12 @@ test-data/json/mlbl-gift-order-config.json
 
 Project nen chay: `si`.
 
+Thong tin live nguoi dat hang va SDT nguoi dat duoc lay tu env `MLBL_GIFT_ORDER_CUSTOMER_NAME`, `MLBL_GIFT_ORDER_CUSTOMER_PHONE`; neu khong set env thi dung fallback trong `test-data/json/mlbl-gift-order-si.json`.
+
 ### Lenh run
 
 ```powershell
-npx playwright test tests/api/checkout/mlbl-gift-order-api.spec.ts --project=si
+npx playwright test tests/api/checkout/api-checkout-gift-order.spec.ts --project=si
 ```
 
 Neu can chay tiep k6 cho cung case MLBL gift order sau khi Playwright API da tao/verify payload:
@@ -412,17 +414,19 @@ Lenh smoke tao tai nho de kiem tra nhanh k6. Lenh json dung cho lan load theo ca
 Chi chay testcase tao order:
 
 ```powershell
-npx playwright test tests/api/checkout/mlbl-gift-order-api.spec.ts --grep "should create an SI order" --project=si
+npx playwright test tests/api/checkout/api-checkout-gift-order.spec.ts --grep "should create an SI order" --project=si
 ```
 
 ### Report
 
 ```text
 playwright-report
-test-results/api-performance/si-mlbl-gift-order-api-report.md
-test-results/api-performance/si-mlbl-gift-order-api-report.json
+test-results/report/api-performance/si-mlbl-gift-order-api-report.md
+test-results/report/api-performance/si-mlbl-gift-order-api-report.json
 test-results
 ```
+
+Report JSON/Markdown va template k6 se ghi them `customerName` va `customerPhone` da duoc resolve cho request tao order.
 
 ## MLBL gift order k6
 
@@ -441,7 +445,15 @@ K6_MLBL_BASE_URL
 K6_TOTAL_ORDERS
 K6_RATE_PER_SECOND
 K6_MAX_VUS
+MLBL_GIFT_ORDER_CUSTOMER_NAME
+MLBL_GIFT_ORDER_CUSTOMER_PHONE
+MLBL_GIFT_ORDER_CUSTOMER_ADDRESS
+MLBL_GIFT_ORDER_GIFT_RECEIVER_NAME
+MLBL_GIFT_ORDER_GIFT_RECEIVER_PHONE
+MLBL_GIFT_ORDER_PAYMENT_METHOD
 ```
+
+K6 MLBL gift order dung chung cac bien `MLBL_GIFT_ORDER_*` voi Playwright API flow; cac bien cu `K6_CUSTOMER_*` va `K6_GIFT_RECEIVER_*` van duoc fallback neu da set tu truoc.
 
 ### Lenh run
 
@@ -460,10 +472,10 @@ node scripts/run-k6-mlbl-gift-order.js --project si --json
 ### Report
 
 ```text
-test-results/k6/<project>-mlbl-gift-order-load-report.md
-test-results/k6/<project>-mlbl-gift-order-load-report.json
-test-results/k6/<project>-mlbl-gift-order-load-metrics.json
-test-results/k6/<project>-mlbl-gift-order-load-summary.json
+test-results/report/k6/<project>-mlbl-gift-order-load-report.md
+test-results/report/k6/<project>-mlbl-gift-order-load-report.json
+test-results/report/k6/<project>-mlbl-gift-order-load-metrics.json
+test-results/report/k6/<project>-mlbl-gift-order-load-summary.json
 ```
 
 ## Bang lenh nhanh
@@ -472,13 +484,13 @@ test-results/k6/<project>-mlbl-gift-order-load-summary.json
 | --- | --- |
 | Xem danh sach test | `npm run test:list` |
 | Chay full Playwright suite | `npm test` |
-| Invoice UI | `npm run test:checkout -- --project=si` |
-| Copy UI | `npm run test:copy -- --project=si` |
-| Bulk checkout UI | `npm run test:ui-bulk -- --project=si` |
-| API template guest | `npm run test:api-template:guest -- --project=si` |
-| API template login | `npm run test:api-template:login -- --project=si` |
-| API performance guest | `npm run test:api-performance:guest -- --project=si` |
-| API performance login | `npm run test:api-performance:login -- --project=si` |
+| Invoice UI | `npm run test:checkout-invoice -- --project=si` |
+| Copy UI | `npm run test:copy-qr -- --project=si` |
+| Bulk checkout UI | `npm run test:checkout-bulk -- --project=si` |
+| API template guest | `npm run test:api-checkout-k6-template:guest -- --project=si` |
+| API template login | `npm run test:api-checkout-k6-template:login -- --project=si` |
+| API performance guest | `npm run test:api-checkout-performance:guest -- --project=si` |
+| API performance login | `npm run test:api-checkout-performance:login -- --project=si` |
 | k6 checkout guest | `npm run k6:checkout:guest:json` |
 | k6 checkout login | `npm run k6:checkout:login:json` |
 | k6 MLBL gift order | `npm run k6:mlbl-gift-order:json` |

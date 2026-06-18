@@ -412,8 +412,9 @@ Agent mac dinh nen ap dung:
 - Task nho doc toi da 3-5 file; neu can hon 5 file phai noi ly do, hon 8 file phai dung hoi user.
 - Dung `rg` de tim dung diem goi, khong mo file lon neu chua can.
 - Doc doan lien quan thay vi toan file khi co the.
+- Voi Playwright error context/report/log, doc error message, stack trace, ten testcase fail, va dong page snapshot lien quan truc tiep truoc; chi mo rong artifact khi cac doan nay chua du tim root cause.
 - Voi plan/kich ban/docs dai, tim heading bang `rg`/`Select-String` roi patch doan lien quan; khong doc ca file neu khong can.
-- Chay spec don le thay vi full suite.
+- Chay testcase `--grep` hoac spec don le thay vi full suite.
 - Cat bot log, chi trich phan loi chinh.
 - Bao cao ngan gon sau khi xong.
 - Khong tao plan/scenario/verification note cho task chi phan tich hoac sua 1-2 file neu user khong yeu cau.
@@ -425,6 +426,7 @@ Lenh verify uu tien:
 npx playwright test path/to/spec.ts
 npm run typecheck
 npx eslint path/to/file.ts
+npx playwright test tests/path/to/file.spec.ts --project=<project-name> --grep "ten testcase fail"
 npm test -- --grep "ten test"
 ```
 
@@ -441,10 +443,11 @@ Khi can verify, agent phai chon lenh nho nhat co y nghia theo thu tu:
 
 ```text
 1. Typecheck/lint file neu thay doi lien quan TypeScript/static code.
-2. Chay dung spec bi anh huong.
-3. Chay mot project/site dai dien neu spec co nhieu project.
-4. Chay 1-2 spec dai dien neu sua helper/config dung chung.
-5. Chi chay full suite khi user yeu cau hoac thay doi co anh huong rong.
+2. Neu biet testcase fail ro ten, chay dung testcase bang `--grep` truoc.
+3. Neu testcase `--grep` pass, chay ca spec/project lien quan khi can xac nhan regression trong spec do.
+4. Chay mot project/site dai dien neu spec co nhieu project.
+5. Chay 1-2 spec dai dien neu sua helper/config dung chung.
+6. Chi chay full suite khi user yeu cau hoac thay doi co anh huong rong.
 ```
 
 Lenh uu tien:
@@ -452,6 +455,7 @@ Lenh uu tien:
 ```text
 npm run typecheck
 npx eslint path/to/file.ts
+npx playwright test tests/path/to/file.spec.ts --project=<project-name> --grep "ten testcase fail"
 npx playwright test tests/path/to/file.spec.ts
 npx playwright test tests/path/to/file.spec.ts --project=<project-name>
 npm test
@@ -461,6 +465,8 @@ Quy tac khi chay testcase:
 
 - Truoc khi chay, noi ro vi sao chon lenh do.
 - Khong chay `npm test` hoac `npx playwright test` full suite neu chua can.
+- Khong chay ca spec/project lien quan neu testcase `--grep` dang fail, tru khi can them artifact de debug hoac user yeu cau.
+- Chi chay ca spec/project lien quan sau khi testcase `--grep` pass, thay doi cham nhieu testcase, hoac can xac nhan regression trong spec do.
 - Neu test output dai, chi doc/trich loi chinh va file/line lien quan.
 - Neu test fail 2 vong lien tiep, dung lai tom tat nguyen nhan va de xuat buoc tiep theo.
 - Neu test can env/data that, kiem tra file env/data trong pham vi truoc khi chay.
@@ -476,17 +482,17 @@ Muc tieu: ...
 Pham vi: chi doc/sua ...
 Khong lam: khong refactor, khong chay full test.
 Verify: chi chay ...
-Output: tom tat ngan.
+Output: root cause, file da sua, ket qua verify, rui ro con lai.
 ```
 
 Vi du:
 
 ```text
 Che do tiet kiem quota.
-Fix loi trong tests/ui/checkout/copy-functionality.spec.ts.
+Fix loi trong tests/ui/checkout/copy-qr-content.spec.ts.
 Chi doc spec, steps/copy.steps.ts va components/pages/CopyPage.ts.
 Khong chay full suite.
-Verify bang npx playwright test tests/ui/checkout/copy-functionality.spec.ts.
+Verify bang npx playwright test tests/ui/checkout/copy-qr-content.spec.ts --grep "ten testcase fail", sau do chay ca spec neu grep pass.
 ```
 
 ## 7. Agent De Xuat De Kiem Soat Chat Luong
@@ -535,6 +541,7 @@ Nguong goi y:
 ```text
 Doc > 8 file cho task nho: can xac nhan scope.
 Output command > 200 dong: chi lay phan loi chinh.
+Playwright artifact/report dai: chi lay error, stack trace, testcase fail, va page snapshot lien quan truc tiep.
 Qua 2 vong test fail: tom tat va doi chien luoc debug.
 ```
 
@@ -608,4 +615,4 @@ Muc dich:
 - Da verify bang lenh nho nhat co y nghia.
 - Da neu ro neu khong chay duoc test.
 - Da khong commit/push neu user khong yeu cau.
-- Final ngan gon, co file da tao/sua va ket qua verify.
+- Final ngan gon, neu ro root cause, file da tao/sua, ket qua verify, va rui ro con lai.

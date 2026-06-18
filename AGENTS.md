@@ -42,6 +42,8 @@ Project-local rules in this file and the two `Agent/` guides are the default wor
 - If more than 5 files are needed for a small task, explain why before continuing.
 - If more than 8 files are needed, stop and ask the user before expanding further.
 - Do not read long docs/plans/logs end to end when only one section is relevant; use `rg` or targeted section reads.
+- When reading Playwright error contexts, reports, logs, or screenshots metadata, start with the error message, stack trace, failing test title, and directly related page snapshot lines only; do not read the full artifact unless those targeted sections are insufficient.
+- For a failing Playwright spec with a known test title, prefer the smallest useful grep command first. Run the whole related spec/project only after the grep case passes, the user asks, or the change affects multiple tests in that spec.
 - Do not create plan files, scenario files, verification notes, or docs for analysis-only tasks or edits touching only 1-2 files unless the user asks.
 - Do not create new user-facing guides/docs unless the user explicitly asks, or a new reusable test command/spec requires `docs/repo-command-guide.md` to be updated by the rules below.
 
@@ -81,6 +83,7 @@ Use Test Selector when verifying changes:
 Test Selector:
 - Choose the smallest meaningful verification command.
 - Prefer one related spec over the full Playwright suite.
+- For a known failing test inside a spec, run the focused `--grep` case first; run the whole related spec/project only if the grep case passes or broader risk requires it.
 - Prefer typecheck or file-level lint when the change is not browser-behavior related.
 - Ask before running full test suites or commands with large output.
 ```
@@ -95,5 +98,5 @@ Goal:
 Scope:
 Do not:
 Verify:
-Output:
+Output: root cause, files changed, verification result, and remaining risk.
 ```

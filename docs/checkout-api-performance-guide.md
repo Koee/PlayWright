@@ -13,7 +13,7 @@ npm run k6:version
 Chay flow guest/no-login dung khuyen nghi:
 
 ```bash
-npx playwright test tests/api/checkout/checkout-api-template.spec.ts --grep "@api-template-guest" --project=si
+npx playwright test tests/api/checkout/api-checkout-k6-template.spec.ts --grep "@api-template-guest" --project=si
 node scripts/run-k6-checkout.js --mode guest --project si --json
 ```
 
@@ -48,7 +48,7 @@ node scripts/run-k6-checkout.js --mode guest --json --dry-run
 Neu moi kiem tra setup k6/API, nen chay smoke nhe truoc se chi tao 1 don de kiem tra. Smoke van can template da duoc Playwright sinh truoc do:
 
 ```bash
-npx playwright test tests/api/checkout/checkout-api-template.spec.ts --grep "@api-template-guest" --project=si
+npx playwright test tests/api/checkout/api-checkout-k6-template.spec.ts --grep "@api-template-guest" --project=si
 npm run k6:checkout:guest:smoke
 ```
 
@@ -108,7 +108,7 @@ Script `npm run k6:*` da clear cac bien proxy `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_
 Chay Playwright API batch guest rieng, khong qua k6:
 
 ```bash
-npx playwright test tests/api/checkout/checkout-api-performance.spec.ts --grep "@api-performance-guest" --project=si
+npx playwright test tests/api/checkout/api-checkout-performance.spec.ts --grep "@api-performance-guest" --project=si
 ```
 
 Lenh nay dung de debug API bang Playwright, co report rieng:
@@ -144,7 +144,7 @@ test-results/err-screenshots/<project>-<mode>-checkout-api-detection-failure-*.p
 Chay flow login/with-token:
 
 ```bash
-npx playwright test tests/api/checkout/checkout-api-template.spec.ts --grep "@api-template-login" --project=si
+npx playwright test tests/api/checkout/api-checkout-k6-template.spec.ts --grep "@api-template-login" --project=si
 npm run k6:checkout:login:json
 ```
 
@@ -182,7 +182,7 @@ Doc tu entrypoint truoc, helper sau.
 File prepare template cho k6:
 
 ```text
-tests/api/checkout/checkout-api-template.spec.ts
+tests/api/checkout/api-checkout-k6-template.spec.ts
 ```
 
 Flow guest trong file nay:
@@ -206,7 +206,7 @@ Y nghia:
 File Playwright API batch:
 
 ```text
-tests/api/checkout/checkout-api-performance.spec.ts
+tests/api/checkout/api-checkout-performance.spec.ts
 ```
 
 File nay dung khi muon debug dat nhieu don bang Playwright API. Khong phai flow chinh de ban tai.
@@ -298,7 +298,7 @@ playwright.config.ts
 3. Chay lai template theo project moi:
 
 ```bash
-npx playwright test tests/api/checkout/checkout-api-template.spec.ts --grep "@api-template-guest" --project=inter
+npx playwright test tests/api/checkout/api-checkout-k6-template.spec.ts --grep "@api-template-guest" --project=inter
 ```
 
 4. Chay k6 voi template moi:
@@ -383,7 +383,7 @@ File cu `test-results/k6/checkout-order-load-error-report.md` van duoc ghi voi c
 Neu k6 fail ngay tu dau vi khong tim thay template, hay chay lai lenh Playwright template truoc:
 
 ```bash
-npx playwright test tests/api/checkout/checkout-api-template.spec.ts --grep "@api-template-guest" --project=si
+npx playwright test tests/api/checkout/api-checkout-k6-template.spec.ts --grep "@api-template-guest" --project=si
 ```
 
 Loi thieu template xay ra o buoc init script nen k6 chua vao duoc `handleSummary` de ghi report.
@@ -496,7 +496,7 @@ thi detector dang bat sai API. Can sua filter de bat API tao don that, khong bat
 Sau moi lan sua detector hoac replace payload, chay lai:
 
 ```bash
-npx playwright test tests/api/checkout/checkout-api-template.spec.ts --grep "@api-template-guest" --project=si
+npx playwright test tests/api/checkout/api-checkout-k6-template.spec.ts --grep "@api-template-guest" --project=si
 ```
 
 Sau do moi chay k6:

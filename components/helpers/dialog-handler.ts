@@ -22,7 +22,7 @@ export type DialogTracker = {
     activeCapture?: Promise<CapturedDialog>;
 };
 
-const errScreenshotDir = path.join('test-results', 'err-screenshots');
+const errScreenshotDir = path.join('test-results', 'report', 'err');
 
 function safeFilePart(value: string | undefined) {
     return value?.replace(/[^a-z0-9-_]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 80);

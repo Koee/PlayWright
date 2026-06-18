@@ -11,10 +11,10 @@ import {
 } from '../../../steps/checkout-api-performance.steps';
 import { QR_READY_TIMEOUT_MS } from '../../../config/test.config';
 
-test.describe('Checkout API Template - All Websites', () => {
+test.describe('API Checkout k6 Template - All Websites', () => {
     // Flow guest/no-login: dung cho website cho phep mua truc tiep, khong can token.
     // Run:
-    // npx playwright test tests/api/checkout/checkout-api-template.spec.ts --grep "@api-template-guest" --project=si
+    // npx playwright test tests/api/checkout/api-checkout-k6-template.spec.ts --grep "@api-template-guest" --project=si
     test('should prepare guest checkout order API template for k6 @checkout @api-template-guest', async ({ page }, testInfo) => {
         test.setTimeout(QR_READY_TIMEOUT_MS + 30000);
 
@@ -46,7 +46,7 @@ test.describe('Checkout API Template - All Websites', () => {
     // B2: Playwright API detect + smoke API dat hang, sau do export token/payload cho k6.
     // File template se nam trong test-data/k6/<project>-login-checkout-order-api-template.json.
     // Run:
-    // npx playwright test tests/api/checkout/checkout-api-template.spec.ts --grep "@api-template-login" --project=si
+    // npx playwright test tests/api/checkout/api-checkout-k6-template.spec.ts --grep "@api-template-login" --project=si
     test('should prepare login checkout order API template for k6 @checkout @api-template-login', async ({ page }, testInfo) => {
         test.setTimeout(QR_READY_TIMEOUT_MS + 30000);
 

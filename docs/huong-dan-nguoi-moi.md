@@ -52,8 +52,8 @@ tests/ui/checkout/invoice.spec.ts
 Vi du flow copy:
 
 ```text
-tests/ui/checkout/copy-functionality.spec.ts
-tests/ui/checkout/copy-project-stages.spec.ts
+tests/ui/checkout/copy-qr-content.spec.ts
+tests/ui/checkout/copy-order-stages.spec.ts
   -> steps/copy.steps.ts
       -> components/pages/CopyPage.ts
           -> components/helpers/dialog-handler.ts
@@ -108,8 +108,8 @@ Doc:
 
 ```text
 tests/ui/checkout/invoice.spec.ts
-tests/ui/checkout/copy-functionality.spec.ts
-tests/ui/checkout/copy-project-stages.spec.ts
+tests/ui/checkout/copy-qr-content.spec.ts
+tests/ui/checkout/copy-order-stages.spec.ts
 ```
 
 Can nam:
@@ -204,19 +204,19 @@ npm test
 Chay checkout:
 
 ```bash
-npm run test:checkout
+npm run test:checkout-invoice
 ```
 
 Chay copy NDS:
 
 ```bash
-npm run test:copy
+npm run test:copy-qr
 ```
 
 Chay mot spec:
 
 ```bash
-npx playwright test tests/ui/checkout/copy-project-stages.spec.ts
+npx playwright test tests/ui/checkout/copy-order-stages.spec.ts
 ```
 
 Chay mot website/project:
@@ -314,8 +314,8 @@ Khong nen:
 Entry point:
 
 ```text
-tests/ui/checkout/copy-functionality.spec.ts
-tests/ui/checkout/copy-project-stages.spec.ts
+tests/ui/checkout/copy-qr-content.spec.ts
+tests/ui/checkout/copy-order-stages.spec.ts
 ```
 
 Spec goi:
@@ -562,7 +562,7 @@ Trong do:
 Vi du flow MLBL gift order:
 
 ```text
-tests/api/checkout/mlbl-gift-order-api.spec.ts
+tests/api/checkout/api-checkout-gift-order.spec.ts
   -> steps/mlbl-gift-order.steps.ts
       -> components/helpers/mlbl-gift-order-payload.ts
           -> test-data/json/mlbl-gift-order-si.json
@@ -600,7 +600,7 @@ Quy tac:
 Lenh lien quan MLBL gift order:
 
 ```bash
-npx playwright test tests/api/checkout/mlbl-gift-order-api.spec.ts --project=si
+npx playwright test tests/api/checkout/api-checkout-gift-order.spec.ts --project=si
 npm run k6:mlbl-gift-order:smoke
 ```
 
@@ -705,8 +705,8 @@ Neu co thay doi flow quan trong, chay them spec lien quan:
 
 ```bash
 npx playwright test tests/ui/checkout/invoice.spec.ts --project=si
-npx playwright test tests/ui/checkout/copy-functionality.spec.ts --project=si
-npx playwright test tests/ui/checkout/copy-project-stages.spec.ts --project=si
+npx playwright test tests/ui/checkout/copy-qr-content.spec.ts --project=si
+npx playwright test tests/ui/checkout/copy-order-stages.spec.ts --project=si
 ```
 
 ---
