@@ -49,8 +49,8 @@ Doc `package.json` de biet project chay bang lenh nao:
 ```json
 {
   "test": "playwright test",
-  "test:checkout": "playwright test tests/checkout/checkout-flow.spec.ts",
-  "test:copy": "playwright test tests/checkout/copy-functionality.spec.ts",
+  "test:checkout": "playwright test tests/ui/checkout/invoice.spec.ts",
+  "test:copy": "playwright test tests/ui/checkout/copy-functionality.spec.ts",
   "test:list": "playwright test --list",
   "typecheck": "tsc --noEmit"
 }
@@ -102,7 +102,7 @@ Vi du `copy-functionality.spec.ts` chi co mot test, nhung Playwright se chay tes
 
 ## 5. Doc File Spec
 
-Vi du flow copy bat dau tu `tests/checkout/copy-functionality.spec.ts`:
+Vi du flow copy bat dau tu `tests/ui/checkout/copy-functionality.spec.ts`:
 
 ```ts
 import { test } from '@playwright/test';
@@ -125,7 +125,7 @@ File spec chi lam 3 viec:
 
 Spec khong nen chua logic chi tiet. Spec chi la cua vao cua testcase.
 
-Flow checkout tuong tu trong `tests/checkout/checkout-flow.spec.ts`:
+Flow checkout tuong tu trong `tests/ui/checkout/invoice.spec.ts`:
 
 ```ts
 await completeCheckoutFlow(page, testInfo);
@@ -295,7 +295,7 @@ Checkout flow nam o `steps/checkout.steps.ts`.
 Chuoi chinh:
 
 ```text
-checkout-flow.spec.ts
+invoice.spec.ts
 -> completeCheckoutFlow
    -> page.goto(homeUrl)
    -> checkoutPage.selectTab
