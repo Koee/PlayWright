@@ -130,6 +130,46 @@ test.describe('MLBL Gift Order API - SI', () => {
         expect(payload.orderData.tongGtQuaTangDaChon).toBe(7654321);
     });
 
+    test('should include configured order customer info in API payload @checkout @mlbl-gift-order', async ({}, testInfo) => {
+        test.skip(testInfo.project.name !== 'si', 'MLBL gift-order payload is scoped to SI first.');
+
+        const scenario = loadMlblGiftOrderData();
+        const payload = buildMlblGiftOrderPayload('https://si.timdaythay.com/', scenario);
+
+        expect(payload.orderData.customerName).toBe(scenario.customer.name);
+        expect(payload.orderData.customerPhone).toBe(scenario.customer.phone);
+    });
+
+    test('should calculate SI gift-order totals like the website order @checkout @mlbl-gift-order', async ({}, testInfo) => {
+        test.skip(testInfo.project.name !== 'si', 'MLBL gift-order payload is scoped to SI first.');
+
+        const payload = buildMlblGiftOrderPayload('https://si.timdaythay.com/', loadMlblGiftOrderData(), {
+            productSku: '40000263',
+            productQuantity: 113,
+            giftSku: 'SPE0000016',
+            giftQuantity: 1,
+        }, {
+            product: {
+                sku: '40000263',
+                giaSauKM: 2799360,
+            },
+            gift: {
+                sku: 'SPE0000016',
+                tenSP: 'Kiềng Vàng Ý trắng 75% (18K) PNJ 0000W060248',
+                nhanHang: 'Kiềng',
+                giaTriHangTang: 78620000,
+            },
+        });
+
+        expect(payload.orderData.tongGiaTriHangHoa).toBe(527212800);
+        expect(payload.orderData.tongGiaTriDangBan).toBe(490307904);
+        expect(payload.orderData.tongMuaLoi).toBe(289967040);
+        expect(payload.orderData.totalAmount).toBe(316327680);
+        expect(payload.orderData.tongGtQuaTang).toBe(79081920);
+        expect(payload.orderData.tongGtQuaTangDaChon).toBe(78620000);
+        expect(payload.orderData.tongGtQuaTangConLai).toBe(461920);
+    });
+
     test('should build payload with live gift data when configured gift SKU is not in fixture @checkout @mlbl-gift-order', async ({}, testInfo) => {
         test.skip(testInfo.project.name !== 'si', 'MLBL gift-order payload is scoped to SI first.');
 

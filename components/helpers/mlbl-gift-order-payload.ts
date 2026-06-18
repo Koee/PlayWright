@@ -8,6 +8,8 @@ export type MlblGiftOrderProduct = {
     tenSP: string;
     nhanHang: string;
     giaSauKM: number;
+    giaDangBanKenh?: number;
+    giaMuaLoi?: number;
     soLuong: number;
     giaGoc: number;
     brandType: string;
@@ -26,6 +28,20 @@ export type MlblGiftOrderGift = {
     hinhThucGiao: string;
     loai: string;
     sheetName: string;
+};
+
+export type MlblGiftOrderProductLine = MlblGiftOrderProduct & { tienSauKM: number };
+
+export type MlblGiftOrderTotals = {
+    totalAmount: number;
+    totalHoaHongSale: number;
+    totalThuongAdmin: number;
+    tongGiaTriHangHoa: number;
+    tongGiaTriDangBan: number;
+    tongMuaLoi: number;
+    tongGtQuaTang: number;
+    tongGtQuaTangDaChon: number;
+    tongGtQuaTangConLai: number;
 };
 
 type MlblGiftOrderComboRule = {
@@ -60,6 +76,8 @@ export type MlblGiftOrderLiveProductPrice = {
     tenSP?: string;
     nhanHang?: string;
     giaSauKM: number;
+    giaDangBanKenh?: number;
+    giaMuaLoi?: number;
 };
 
 export type MlblGiftOrderLiveGiftData = {
@@ -98,6 +116,7 @@ export type MlblGiftOrderData = {
         nhomDoiTuong: string;
     };
     giftBudget: number;
+    giftBudgetRate?: number;
     giftQuantity?: number;
     combo?: {
         name?: string;
@@ -148,7 +167,7 @@ export type MlblGiftOrderPayload = {
         tenBich: string;
         sizeBich: string;
         nhomDoiTuong: string;
-        products: Array<MlblGiftOrderProduct & { tienSauKM: number }>;
+        products: MlblGiftOrderProductLine[];
         gift: {
             items: MlblGiftOrderGift[];
         };
@@ -186,6 +205,40 @@ export function loadMlblGiftOrderData(dataPath = DATA_PATH): MlblGiftOrderData {
 
 export function loadMlblGiftOrderConfig(configPath = CONFIG_PATH): MlblGiftOrderEditableConfig {
     return JSON.parse(fs.readFileSync(configPath, 'utf-8').replace(/^\uFEFF/, ''));
+}
+
+export function calculateMlblGiftOrderTotals(
+    products: MlblGiftOrderProductLine[],
+    gifts: MlblGiftOrderGift[],
+    data: Pick<MlblGiftOrderData, 'giftBudget' | 'giftBudgetRate'>,
+): MlblGiftOrderTotals {
+    const productTotals = products.reduce((totals, product) => {
+        totals.totalAmount += product.tienSauKM;
+        totals.totalHoaHongSale += product.hhNvkd * product.soLuong;
+        totals.totalThuongAdmin += product.tAdminNvkd * product.soLuong;
+        totals.tongGiaTriHangHoa += product.giaGoc * product.soLuong;
+        totals.tongGiaTriDangBan += (product.giaDangBanKenh ?? product.giaSauKM) * product.soLuong;
+        totals.tongMuaLoi += (product.giaMuaLoi ?? 0) * product.soLuong;
+        return totals;
+    }, {
+        totalAmount: 0,
+        totalHoaHongSale: 0,
+        totalThuongAdmin: 0,
+        tongGiaTriHangHoa: 0,
+        tongGiaTriDangBan: 0,
+        tongMuaLoi: 0,
+    });
+    const tongGtQuaTang = data.giftBudgetRate === undefined
+        ? data.giftBudget
+        : Math.round(productTotals.totalAmount * data.giftBudgetRate);
+    const tongGtQuaTangDaChon = gifts.reduce((sum, gift) => sum + gift.giaTriHangTang * gift.soLuong, 0);
+
+    return {
+        ...productTotals,
+        tongGtQuaTang,
+        tongGtQuaTangDaChon,
+        tongGtQuaTangConLai: tongGtQuaTang - tongGtQuaTangDaChon,
+    };
 }
 
 function resolveProjectPath(filePath: string) {
@@ -487,11 +540,7 @@ export function buildMlblGiftOrderPayload(
         ...product,
         tienSauKM: product.giaSauKM * product.soLuong,
     }));
-    const totalAmount = products.reduce((sum, product) => sum + product.tienSauKM, 0);
-    const totalHoaHongSale = products.reduce((sum, product) => sum + product.hhNvkd * product.soLuong, 0);
-    const totalThuongAdmin = products.reduce((sum, product) => sum + product.tAdminNvkd * product.soLuong, 0);
-    const tongGiaTriHangHoa = products.reduce((sum, product) => sum + product.giaGoc * product.soLuong, 0);
-    const tongGtQuaTangDaChon = scenario.gifts.reduce((sum, gift) => sum + gift.giaTriHangTang * gift.soLuong, 0);
+    const totals = calculateMlblGiftOrderTotals(products, scenario.gifts, data);
 
     return {
         _token: process.env.MLBL_GIFT_ORDER_TOKEN || data.token,
@@ -508,16 +557,8 @@ export function buildMlblGiftOrderPayload(
             gift: {
                 items: scenario.gifts,
             },
-            tongGiaTriHangHoa,
-            tongGiaTriDangBan: totalAmount,
-            tongMuaLoi: 0,
-            totalAmount,
-            tongGtQuaTang: data.giftBudget,
-            tongGtQuaTangDaChon,
-            tongGtQuaTangConLai: data.giftBudget - tongGtQuaTangDaChon,
-            totalHoaHongSale,
-            totalThuongAdmin,
-            pay1Lan: totalAmount,
+            ...totals,
+            pay1Lan: totals.totalAmount,
             pay1LanStatus: '',
             deposit: 0,
             depositStatus: '',

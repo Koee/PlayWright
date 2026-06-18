@@ -138,11 +138,14 @@ npx eslint path/to/file.ts
 
 Agent phai canh bao hoac dung lai hoi user khi:
 
-- Task nho nhung da can doc hon 8 file.
+- Task nho nen doc toi da 3-5 file. Neu can hon 5 file, phai noi ly do mo rong truoc khi doc tiep.
+- Task nho nhung da can doc hon 8 file thi phai dung lai, tom tat hien trang, va hoi user truoc khi mo rong.
 - Command output qua dai va khong con tap trung vao loi chinh.
 - Da chay hon 2 vong verify fail ma chua co huong moi.
 - Can doc report/log lon thay vi phan loi chinh.
 - Can chay full suite de xac nhan.
+- Can doc docs/plan/log dai nhung chi lien quan mot heading; phai dung `rg`/`Select-String` va doc dung doan.
+- Task chi phan tich hoac sua 1-2 file thi khong tao plan/scenario/verification note tru khi user yeu cau.
 
 Mau dung lai:
 

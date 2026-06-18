@@ -22,6 +22,16 @@ Khong chay full suite neu chua can.
 Khong refactor ngoai yeu cau.
 ```
 
+### 1.1. Quan He Voi Superpowers
+
+Trong repo nay, `AGENTS.md`, `Agent/question-first-scope-rules.md`, va file nay la workflow mac dinh. Superpowers chi la ho tro bo sung khi phu hop voi quy mo task.
+
+- Khong dung full `superpowers:brainstorming` cho task nho, bugfix, review, giai thich code, sua data/config, hoac mo rong mot flow da co.
+- Task nho chi dung Question-First Scope Rules, Scope Guard, va Test Selector.
+- Chi dung full brainstorming khi tao cong viec lon moi can thiet ke tu dau, vi du viet test script cho chuc nang moi chua co pattern, tao workflow nhieu file moi, hoac khi user yeu cau brainstorm/design.
+- Voi viec mo rong chuc nang da co, vi du them k6 performance cho test A da ton tai, bat dau tu file hien co va chi lap kich ban ngan neu thay doi cham nhieu file hoac co rui ro.
+- Khong tao spec/plan trong `docs/superpowers/*`, khong commit, va khong them review gate theo Superpowers neu user khong yeu cau ro.
+
 ## 2. Nguyen Tac Doc Pham Vi
 
 ### 2.1. Bat Dau Tu Yeu Cau Cua User
@@ -97,8 +107,10 @@ Phan biet voi formal project plan:
 - Kich ban/nhap/ghi chu tam cua agent: dat trong `Agent/`.
 - Implementation plan chinh thuc cua du an: dat trong `docs/plans/YYYY-MM-DD-<feature-name>.md`.
 - Live task tracker chinh thuc: dat trong `docs/plans/task.md`.
-- Khong dung `docs/superpowers/plans/` tru khi user yeu cau ro.
+- `docs/superpowers/*` la legacy trong repo nay. Khong tao file moi tai day tru khi user yeu cau ro dung vi tri do.
 - `docs/plans/task.md` phai ngan gon, chi ghi status/task; khong nhoi log dai, diff dai, hay chi tiet implementation.
+- Khong commit spec/plan/doc/code neu user khong yeu cau ro.
+- Khong tao user-facing guide/doc moi tru khi user yeu cau, hoac khi tao script/spec lap lai bat buoc cap nhat `docs/repo-command-guide.md`.
 
 Nguyen tac chong phinh kich ban va tiet kiem quota:
 
@@ -397,12 +409,15 @@ Quota thuong tang nhanh vi:
 Agent mac dinh nen ap dung:
 
 - Doc toi thieu file can thiet.
+- Task nho doc toi da 3-5 file; neu can hon 5 file phai noi ly do, hon 8 file phai dung hoi user.
 - Dung `rg` de tim dung diem goi, khong mo file lon neu chua can.
 - Doc doan lien quan thay vi toan file khi co the.
 - Voi plan/kich ban/docs dai, tim heading bang `rg`/`Select-String` roi patch doan lien quan; khong doc ca file neu khong can.
 - Chay spec don le thay vi full suite.
 - Cat bot log, chi trich phan loi chinh.
 - Bao cao ngan gon sau khi xong.
+- Khong tao plan/scenario/verification note cho task chi phan tich hoac sua 1-2 file neu user khong yeu cau.
+- Khong tao docs/guide moi neu user khong yeu cau hoac task khong tao command/spec lap lai can document.
 
 Lenh verify uu tien:
 

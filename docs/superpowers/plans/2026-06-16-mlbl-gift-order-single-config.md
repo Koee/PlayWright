@@ -1,6 +1,6 @@
 # MLBL Gift Order Single Config Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Legacy note:** This old Superpowers plan is kept only as historical context. Do not treat it as the current workflow, do not invoke required Superpowers sub-skills from this file, and do not create new plans under `docs/superpowers/*` unless the user explicitly asks.
 
 **Goal:** Collapse editable MLBL gift-order data into one scenario file so testers do not need to update SKU, gift quantity, and combo rule across multiple files.
 

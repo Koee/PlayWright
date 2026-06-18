@@ -1,6 +1,6 @@
 # MLBL Gift Order Scenario Cache Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Legacy note:** This old Superpowers plan is kept only as historical context. Do not treat it as the current workflow, do not invoke required Superpowers sub-skills from this file, and do not create new plans under `docs/superpowers/*` unless the user explicitly asks.
 
 **Goal:** Build the MLBL SI gift-order API test so product/gift data is selected from a small scenario cache instead of being hardcoded directly in the test payload file.
 

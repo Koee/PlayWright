@@ -4,8 +4,8 @@
   "token": "a8F3kL9xQ2pZ7mN4",
   "orderCodePrefix": "ONLINE-MLBL-CSB2B",
   "customer": {
-    "name": "",
-    "phone": "",
+    "name": "thạch",
+    "phone": "41021477777",
     "address": ""
   },
   "paymentMethod": "ACB",
@@ -22,11 +22,12 @@
     "nhomDoiTuong": "Si"
   },
   "giftBudget": 4898880,
+  "giftBudgetRate": 0.25,
   "giftQuantity": 1,
   "combo": {
     "name": "KEYONE MEN gel shampoo gets OPPO A5x gift",
     "rule": {
-      "requiredProductQuantity": 36,
+      "requiredProductQuantity": 113,
       "rewardGiftQuantity": 1
     },
     "product": {
@@ -34,6 +35,8 @@
       "tenSP": "Gel Goi KEYONE MEN Nano Bac (Chai 500ml)",
       "nhanHang": "KEYONE MEN",
       "giaSauKM": 2799360,
+      "giaDangBanKenh": 4339008,
+      "giaMuaLoi": 2566080,
       "soLuong": 1,
       "giaGoc": 4665600,
       "brandType": "CORE",

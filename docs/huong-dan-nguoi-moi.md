@@ -391,10 +391,16 @@ Khi sua copy:
 
 Neu task tao testcase moi, them flow API/k6, doi data phuc tap, hoac sua nhieu hon 1 file, phai lap kich ban ngan truoc khi code.
 
-Luu kich ban vao:
+Luu kich ban tam cua agent vao:
 
 ```text
-docs/superpowers/plans/YYYY-MM-DD-ten-task.md
+Agent/YYYY-MM-DD-ten-task-scenario.md
+```
+
+Neu la implementation plan chinh thuc cua du an va user yeu cau tao plan, luu vao:
+
+```text
+docs/plans/YYYY-MM-DD-ten-task.md
 ```
 
 Kich ban toi thieu can co:
@@ -416,7 +422,7 @@ Verify:
 - Lenh nho nhat can chay.
 ```
 
-Vi du da co:
+Vi du legacy chi de tham khao, khong tao moi theo vi tri nay neu user khong yeu cau:
 
 ```text
 docs/superpowers/plans/2026-06-16-mlbl-gift-order-scenario-cache.md
@@ -426,6 +432,8 @@ Luu y:
 
 - Khong can plan dai cho typo hoac sua 1 dong ro rang.
 - Neu task co tao testcase moi, flow API, k6, data dong, hoac report moi thi nen co plan.
+- Neu chi phan tich hoac sua 1-2 file, khong tao plan/scenario file tru khi user yeu cau.
+- Khong tao them huong dan/docs moi tru khi user yeu cau, hoac khi them script/spec lap lai can cap nhat `docs/repo-command-guide.md`.
 - Khong commit plan neu user chua yeu cau commit.
 
 ### Them testcase moi

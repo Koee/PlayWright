@@ -400,6 +400,15 @@ Project nen chay: `si`.
 npx playwright test tests/api/checkout/mlbl-gift-order-api.spec.ts --project=si
 ```
 
+Neu can chay tiep k6 cho cung case MLBL gift order sau khi Playwright API da tao/verify payload:
+
+```powershell
+npm run k6:mlbl-gift-order:smoke
+npm run k6:mlbl-gift-order:json
+```
+
+Lenh smoke tao tai nho de kiem tra nhanh k6. Lenh json dung cho lan load theo cau hinh mac dinh hoac env `K6_*`.
+
 Chi chay testcase tao order:
 
 ```powershell

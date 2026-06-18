@@ -21,6 +21,7 @@ interface MlblGiftOrderData {
     staff: Record<string, string>;
     targetGroup: Record<string, string>;
     giftBudget: number;
+    giftBudgetRate?: number;
     giftQuantity?: number;
     combo?: {
         name?: string;
@@ -53,6 +54,8 @@ type MlblGiftOrderComboRule = {
 
 type MlblGiftOrderProduct = {
     giaSauKM: number;
+    giaDangBanKenh?: number;
+    giaMuaLoi?: number;
     soLuong: number;
     giaGoc: number;
     hhNvkd: number;
@@ -63,6 +66,8 @@ type MlblGiftOrderGift = {
     giaTriHangTang: number;
     soLuong: number;
 } & Record<string, unknown>;
+
+type MlblGiftOrderProductLine = MlblGiftOrderProduct & { tienSauKM: number };
 
 type MlblGiftOrderComboCache = {
     projectName: string;
@@ -303,13 +308,39 @@ function buildProducts() {
     }));
 }
 
+function calculateMlblGiftOrderTotals(products: MlblGiftOrderProductLine[], gifts: MlblGiftOrderGift[], sourceData: MlblGiftOrderData) {
+    const productTotals = products.reduce((totals, product) => {
+        totals.totalAmount += product.tienSauKM;
+        totals.totalHoaHongSale += product.hhNvkd * product.soLuong;
+        totals.totalThuongAdmin += product.tAdminNvkd * product.soLuong;
+        totals.tongGiaTriHangHoa += product.giaGoc * product.soLuong;
+        totals.tongGiaTriDangBan += (product.giaDangBanKenh ?? product.giaSauKM) * product.soLuong;
+        totals.tongMuaLoi += (product.giaMuaLoi ?? 0) * product.soLuong;
+        return totals;
+    }, {
+        totalAmount: 0,
+        totalHoaHongSale: 0,
+        totalThuongAdmin: 0,
+        tongGiaTriHangHoa: 0,
+        tongGiaTriDangBan: 0,
+        tongMuaLoi: 0,
+    });
+    const tongGtQuaTang = sourceData.giftBudgetRate === undefined
+        ? sourceData.giftBudget
+        : Math.round(productTotals.totalAmount * sourceData.giftBudgetRate);
+    const tongGtQuaTangDaChon = gifts.reduce((sum, gift) => sum + gift.giaTriHangTang * gift.soLuong, 0);
+
+    return {
+        ...productTotals,
+        tongGtQuaTang,
+        tongGtQuaTangDaChon,
+        tongGtQuaTangConLai: tongGtQuaTang - tongGtQuaTangDaChon,
+    };
+}
+
 function buildPayload(orderNo: number, vuNumber: number, scenarioIteration: number) {
     const products = buildProducts();
-    const totalAmount = products.reduce((sum, product) => sum + product.giaSauKM * product.soLuong, 0);
-    const totalHoaHongSale = products.reduce((sum, product) => sum + product.hhNvkd * product.soLuong, 0);
-    const totalThuongAdmin = products.reduce((sum, product) => sum + product.tAdminNvkd * product.soLuong, 0);
-    const tongGiaTriHangHoa = products.reduce((sum, product) => sum + product.giaGoc * product.soLuong, 0);
-    const tongGtQuaTangDaChon = scenario.gifts.reduce((sum, gift) => sum + gift.giaTriHangTang * gift.soLuong, 0);
+    const totals = calculateMlblGiftOrderTotals(products, scenario.gifts, data);
     const orderCode = buildOrderCode(orderNo, vuNumber, scenarioIteration);
 
     return {
@@ -329,16 +360,8 @@ function buildPayload(orderNo: number, vuNumber: number, scenarioIteration: numb
                 gift: {
                     items: scenario.gifts,
                 },
-                tongGiaTriHangHoa,
-                tongGiaTriDangBan: totalAmount,
-                tongMuaLoi: 0,
-                totalAmount,
-                tongGtQuaTang: data.giftBudget,
-                tongGtQuaTangDaChon,
-                tongGtQuaTangConLai: data.giftBudget - tongGtQuaTangDaChon,
-                totalHoaHongSale,
-                totalThuongAdmin,
-                pay1Lan: totalAmount,
+                ...totals,
+                pay1Lan: totals.totalAmount,
                 pay1LanStatus: '',
                 deposit: 0,
                 depositStatus: '',
