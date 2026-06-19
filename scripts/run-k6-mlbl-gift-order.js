@@ -1,11 +1,18 @@
 const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const dotenv = require('dotenv');
 
 const rootDir = path.resolve(__dirname, '..');
 const k6DistDir = path.join(rootDir, 'test-results', 'k6-dist');
 const k6CompiledEntry = path.join('test-results', 'k6-dist', 'mlbl-gift-order-load.js');
 const k6CompiledEntryPath = path.join(rootDir, k6CompiledEntry);
+const mlblGiftOrderConfigPath = path.join(rootDir, 'test-data', 'json', 'mlbl-gift-order-config.json');
+
+[
+    path.join(rootDir, 'test-data', 'env', '.env'),
+    path.join(rootDir, '.env'),
+].forEach(envPath => dotenv.config({ path: envPath, quiet: true }));
 
 function hasArg(name) {
     return process.argv.includes(name);
@@ -18,6 +25,32 @@ function readArgValue(name, fallback) {
     }
 
     return process.argv[index + 1];
+}
+
+function readJsonFile(filePath, fallback) {
+    if (!fs.existsSync(filePath)) {
+        return fallback;
+    }
+
+    return JSON.parse(fs.readFileSync(filePath, 'utf-8').replace(/^\uFEFF/, ''));
+}
+
+function getProjectEnvSuffix(projectName) {
+    return projectName.replace(/[^a-z0-9]/gi, '').toUpperCase();
+}
+
+function resolveProjectBaseUrl(projectName) {
+    const envName = `BASE_URL_${getProjectEnvSuffix(projectName)}`;
+    return process.env.K6_MLBL_BASE_URL || process.env[envName] || process.env.BASE_URL_SI || 'https://si.timdaythay.com/';
+}
+
+function resolveProjectDataPath(projectName) {
+    if (process.env.K6_MLBL_DATA_PATH) {
+        return process.env.K6_MLBL_DATA_PATH;
+    }
+
+    const config = readJsonFile(mlblGiftOrderConfigPath, {});
+    return config.dataPaths?.[projectName] || config.dataPaths?.default || 'test-data/json/mlbl-gift-order-si.json';
 }
 
 function collectFiles(dirPath, predicate) {
@@ -87,6 +120,8 @@ const dryRun = hasArg('--dry-run');
 const projectName = readArgValue('--project', process.env.K6_PROJECT_NAME || 'si');
 const outputPath = readArgValue('--out', path.join('test-results', 'report', 'k6', `${projectName}-mlbl-gift-order-load-metrics.json`));
 const k6Path = path.join(rootDir, 'tools', 'k6', process.platform === 'win32' ? 'k6.exe' : 'k6');
+const projectBaseUrl = resolveProjectBaseUrl(projectName);
+const projectDataPath = resolveProjectDataPath(projectName);
 
 const env = {
     ...process.env,
@@ -95,6 +130,8 @@ const env = {
     ALL_PROXY: '',
     NO_PROXY: '*',
     K6_PROJECT_NAME: projectName,
+    K6_MLBL_BASE_URL: projectBaseUrl,
+    K6_MLBL_DATA_PATH: projectDataPath,
     K6_TOTAL_ORDERS: process.env.K6_TOTAL_ORDERS || (smoke ? '1' : '20'),
     K6_RATE_PER_SECOND: process.env.K6_RATE_PER_SECOND || (smoke ? '1' : '5'),
     K6_MAX_VUS: process.env.K6_MAX_VUS || (smoke ? '5' : '20'),
@@ -126,6 +163,8 @@ args.push(k6CompiledEntry);
 console.log([
     'k6 MLBL gift order mode: api-load',
     `K6_PROJECT_NAME: ${env.K6_PROJECT_NAME}`,
+    `K6_MLBL_BASE_URL: ${env.K6_MLBL_BASE_URL}`,
+    `K6_MLBL_DATA_PATH: ${env.K6_MLBL_DATA_PATH}`,
     `K6_TOTAL_ORDERS: ${env.K6_TOTAL_ORDERS}`,
     `K6_RATE_PER_SECOND: ${env.K6_RATE_PER_SECOND}`,
     `K6_MAX_VUS: ${env.K6_MAX_VUS}`,

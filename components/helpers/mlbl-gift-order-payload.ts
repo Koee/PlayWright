@@ -66,9 +66,18 @@ export type MlblGiftOrderEditableConfig = {
     productQuantity: number;
     giftSku: string;
     giftQuantity: number;
+    uiTabs?: MlblGiftOrderUiTabConfig[];
+    uiTabsByProject?: Record<string, MlblGiftOrderUiTabConfig[]>;
+    dataPaths?: Record<string, string>;
     livePricing?: {
         enabled: boolean;
     };
+};
+
+export type MlblGiftOrderUiTabConfig = {
+    tab: string;
+    slug: string;
+    selectors?: string[];
 };
 
 export type MlblGiftOrderLiveProductPrice = {
@@ -202,6 +211,16 @@ const DATA_PATH = path.resolve(process.cwd(), 'test-data', 'json', 'mlbl-gift-or
 const CONFIG_PATH = path.resolve(process.cwd(), 'test-data', 'json', 'mlbl-gift-order-config.json');
 const ORDER_CODE_SUFFIX_LENGTH = 6;
 const ORDER_CODE_SUFFIX_BASE = 36 ** ORDER_CODE_SUFFIX_LENGTH;
+const DEFAULT_PROJECT_CUSTOMER_NAME = 'Nguyễn Văn A';
+const PROJECT_CUSTOMER_NAME_SUFFIX: Record<string, string> = {
+    si: 'SI',
+    hangthietyeu: 'HangThietYeu',
+    tuoixanhnhanhngon: 'TuoiXanhNhanhNgon',
+    tegianoitro: 'TheGiaNoiTro',
+    danongdichthuc: 'DanOngDichThuc',
+    nhanquocdan: 'NhanQuocDan',
+    thegioiphaidep: 'TheGioiPhaiDep',
+};
 
 export function loadMlblGiftOrderData(dataPath = DATA_PATH): MlblGiftOrderData {
     return JSON.parse(fs.readFileSync(dataPath, 'utf-8').replace(/^\uFEFF/, ''));
@@ -209,6 +228,44 @@ export function loadMlblGiftOrderData(dataPath = DATA_PATH): MlblGiftOrderData {
 
 export function loadMlblGiftOrderConfig(configPath = CONFIG_PATH): MlblGiftOrderEditableConfig {
     return JSON.parse(fs.readFileSync(configPath, 'utf-8').replace(/^\uFEFF/, ''));
+}
+
+export function resolveMlblGiftOrderDataPathForProject(
+    projectName: string,
+    config = loadMlblGiftOrderConfig(),
+) {
+    const dataPath = config.dataPaths?.[projectName] ?? config.dataPaths?.default;
+    return dataPath ? resolveProjectPath(dataPath) : DATA_PATH;
+}
+
+function toProjectCustomerSuffix(projectName: string) {
+    const normalizedProjectName = projectName.trim().toLowerCase();
+    const configuredSuffix = PROJECT_CUSTOMER_NAME_SUFFIX[normalizedProjectName];
+    if (configuredSuffix) {
+        return configuredSuffix;
+    }
+
+    return normalizedProjectName
+        .split(/[^a-z0-9]+/i)
+        .filter(Boolean)
+        .map(part => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+        .join('');
+}
+
+export function buildMlblGiftOrderCustomerName(projectName: string) {
+    const suffix = toProjectCustomerSuffix(projectName);
+    return suffix ? `${DEFAULT_PROJECT_CUSTOMER_NAME} ${suffix}` : DEFAULT_PROJECT_CUSTOMER_NAME;
+}
+
+export function loadMlblGiftOrderDataForProject(projectName: string) {
+    const data = loadMlblGiftOrderData(resolveMlblGiftOrderDataPathForProject(projectName));
+    return {
+        ...data,
+        customer: {
+            ...data.customer,
+            name: buildMlblGiftOrderCustomerName(projectName),
+        },
+    };
 }
 
 export function calculateMlblGiftOrderTotals(

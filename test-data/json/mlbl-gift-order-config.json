@@ -3,6 +3,66 @@
   "productQuantity": 113,
   "giftSku": "SPE0000016",
   "giftQuantity": 1,
+  "dataPaths": {
+    "default": "test-data/json/mlbl-gift-order-retailer.json",
+    "si": "test-data/json/mlbl-gift-order-si.json",
+    "hangthietyeu": "test-data/json/mlbl-gift-order-retailer.json",
+    "tuoixanhnhanhngon": "test-data/json/mlbl-gift-order-retailer.json",
+    "tegianoitro": "test-data/json/mlbl-gift-order-retailer.json",
+    "danongdichthuc": "test-data/json/mlbl-gift-order-retailer.json",
+    "nhanquocdan": "test-data/json/mlbl-gift-order-retailer.json",
+    "thegioiphaidep": "test-data/json/mlbl-gift-order-retailer.json"
+  },
+  "uiTabs": [
+    {
+      "tab": "tui don ghep",
+      "slug": "don-ghep"
+    },
+    {
+      "tab": "tui doi",
+      "slug": "doi"
+    },
+    {
+      "tab": "tui da dung",
+      "slug": "da-dung"
+    }
+  ],
+  "uiTabsByProject": {
+    "si": [
+      {
+        "tab": "chon thung",
+        "slug": "chon-thung"
+      }
+    ],
+    "hangthietyeu": [
+      {
+        "tab": "tui don ghep",
+        "slug": "don-ghep"
+      },
+      {
+        "tab": "tui doi",
+        "slug": "doi"
+      },
+      {
+        "tab": "tui da dung",
+        "slug": "da-dung"
+      }
+    ],
+    "tuoixanhnhanhngon": [
+      {
+        "tab": "tui don ghep",
+        "slug": "don-ghep"
+      },
+      {
+        "tab": "tui doi",
+        "slug": "doi"
+      },
+      {
+        "tab": "tui da dung",
+        "slug": "da-dung"
+      }
+    ]
+  },
   "livePricing": {
     "enabled": true
   }
