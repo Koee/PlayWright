@@ -1,0 +1,58 @@
+{
+  "projectName": "retailer",
+  "apiPath": "/api?module=retailer",
+  "token": "a8F3kL9xQ2pZ7mN4",
+  "orderCodePrefix": "ONLINE-MLBL-HTY",
+  "customer": {
+    "name": "Test Retailer",
+    "phone": "0900000001",
+    "address": ""
+  },
+  "paymentMethod": "ACB",
+  "staff": {
+    "staffName": "CAO QUANG VINH",
+    "staffCode": "IP6PFT",
+    "staffEmail": "kiot.hcm.019.6.ntd@one-solution.vn",
+    "kiotCode": "Kiot-HCM-019"
+  },
+  "targetGroup": {
+    "maBich": "",
+    "tenBich": "",
+    "sizeBich": "",
+    "nhomDoiTuong": "Retailer"
+  },
+  "giftBudget": 111510,
+  "giftQuantity": 1,
+  "combo": {
+    "name": "Retailer MENCODE gets Vinh Hien gift",
+    "rule": {
+      "requiredProductQuantity": 1,
+      "rewardGiftQuantity": 1
+    },
+    "product": {
+      "sku": "40000232",
+      "tenSP": "GEL GOI MENCODE DUONG TOC HEMP N' BERGAMOT 350G",
+      "nhanHang": "MENCODE",
+      "giaSauKM": 101952,
+      "giaDangBanKenh": 101952,
+      "giaMuaLoi": 0,
+      "soLuong": 1,
+      "giaGoc": 127440,
+      "brandType": "CORE",
+      "hhNvkd": 19116,
+      "tAdminNvkd": 2549,
+      "donVi": "Chai 350G",
+      "sheetName": "SP-TUI"
+    },
+    "gift": {
+      "sku": "BHX0000122",
+      "tenSP": "Gao con cam Vinh Hien Khong Tuoc Nguyen tui 5kg",
+      "nhanHang": "Vinh Hien",
+      "soLuong": 1,
+      "giaTriHangTang": 111000,
+      "hinhThucGiao": "giao sau",
+      "loai": "Qua tang",
+      "sheetName": "GIFTS_GiaoSau"
+    }
+  }
+}

@@ -1,11 +1,15 @@
 import { expect, test } from '@playwright/test';
 import {
+    buildMlblGiftOrderCustomerName,
     buildMlblGiftOrderPayload,
+    loadMlblGiftOrderConfig,
     loadMlblGiftOrderData,
+    loadMlblGiftOrderDataForProject,
     resolveMlblGiftOrderScenario,
 } from '../../../components/helpers/mlbl-gift-order-payload';
 import {
     createMlblGiftOrderByApi,
+    createMlblGiftOrdersFromUiTabs,
     exportMlblGiftOrderApiTemplate,
     openMlblGiftOrderHome,
 } from '../../../steps/mlbl-gift-order.steps';
@@ -51,8 +55,8 @@ function buildSampleScenario(productQuantity = sampleProduct.soLuong) {
     };
 }
 
-test.describe('API Checkout Gift Order - SI', () => {
-    test.skip(({ browserName }) => browserName !== 'chromium', 'MLBL SI smoke uses the default Chromium project browser.');
+test.describe('API Checkout Gift Order', () => {
+    test.skip(({ browserName }) => browserName !== 'chromium', 'MLBL gift-order smoke uses the default Chromium project browser.');
 
     test('should send order detail payload for product and gift @checkout @mlbl-gift-order', async ({}, testInfo) => {
         test.skip(testInfo.project.name !== 'si', 'MLBL gift-order payload is scoped to SI first.');
@@ -142,6 +146,36 @@ test.describe('API Checkout Gift Order - SI', () => {
         expect(payload.orderData.giftReceiverPhone).toBe(scenario.customer.phone);
         expect(payload.orderData.orderBuyerName).toBe(scenario.customer.name);
         expect(payload.orderData.orderBuyerPhone).toBe(scenario.customer.phone);
+    });
+
+    test('should load configured UI tabs for gift orders across projects @checkout @mlbl-gift-order', async ({}) => {
+        const config = loadMlblGiftOrderConfig();
+
+        expect(config.uiTabs).toEqual([
+            { tab: 'tui don ghep', slug: 'don-ghep' },
+            { tab: 'tui doi', slug: 'doi' },
+            { tab: 'tui da dung', slug: 'da-dung' },
+        ]);
+        expect(config.uiTabsByProject?.si).toEqual([
+            { tab: 'chon thung', slug: 'chon-thung' },
+        ]);
+    });
+
+    test('should resolve project-specific gift order data for non-SI projects @checkout @mlbl-gift-order', async ({}, testInfo) => {
+        test.skip(testInfo.project.name !== 'hangthietyeu', 'Project data path fallback is verified with hangthietyeu.');
+
+        const data = loadMlblGiftOrderDataForProject(testInfo.project.name);
+
+        expect(data.projectName).toBe('retailer');
+        expect(data.customer.name).toBe('Nguyễn Văn A HangThietYeu');
+        expect(data.orderCodePrefix).toBe('ONLINE-MLBL-HTY');
+        expect(data.targetGroup.nhomDoiTuong).toBe('Retailer');
+        expect(data.combo.product.sku).toBe('40000232');
+        expect(data.combo.gift.sku).toBe('BHX0000122');
+    });
+
+    test('should format gift-order customer name from current project @checkout @mlbl-gift-order', async ({}, testInfo) => {
+        expect(buildMlblGiftOrderCustomerName(testInfo.project.name)).toMatch(/^Nguyễn Văn A /);
     });
 
     test('should calculate SI gift-order totals like the website order @checkout @mlbl-gift-order', async ({}, testInfo) => {
@@ -270,5 +304,24 @@ test.describe('API Checkout Gift Order - SI', () => {
         expect(result.giftCount).toBeGreaterThan(0);
 
         await exportMlblGiftOrderApiTemplate(testInfo, page);
+    });
+
+    test('should create gift orders from configured tabs across projects @checkout @mlbl-gift-order @ui', async ({ page }, testInfo) => {
+        test.setTimeout(360000);
+        test.skip(testInfo.project.name === 'si', 'MLBL gift-order UI tab flow is scoped to non-SI retailer projects; SI is covered by API/payload scenarios.');
+
+        const config = loadMlblGiftOrderConfig();
+        const expectedTabs = config.uiTabsByProject?.[testInfo.project.name] ?? config.uiTabs ?? [];
+        const results = await createMlblGiftOrdersFromUiTabs(page, testInfo);
+
+        expect(results).toHaveLength(expectedTabs.length);
+        for (const [index, result] of results.entries()) {
+            expect(result.tab).toBe(expectedTabs[index].tab);
+            expect(result.trangThai, result.error).toBe(true);
+            expect(result.maDon, result.error).toBeTruthy();
+            expect(result.productSkus?.length, result.error).toBeGreaterThan(0);
+            expect(result.giftSkus?.length, result.error).toBeGreaterThan(0);
+            expect(result.screenshotPath, result.error).toContain(`${testInfo.project.name}-gift-orde-`);
+        }
     });
 });

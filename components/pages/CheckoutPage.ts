@@ -515,11 +515,18 @@ export class CheckoutPage {
         ];
 
         const confirmationPopup = await findOrderConfirmationPopup(page);
-        const success = await clickElement(page, selectors, 'Completing order', {
-            visibilityTimeout: 3000,
-            clickTimeout: 10000,
-            waitForNav: false
-        }, dialogTracker);
+        let success = confirmationPopup
+            ? await clickConfirmInsideOrderConfirmationPopup(confirmationPopup)
+            : false;
+
+        if (!success) {
+            await scrollLikelyCustomerInfoContainers(page);
+            success = await clickElement(page, selectors, 'Completing order', {
+                visibilityTimeout: 3000,
+                clickTimeout: 10000,
+                waitForNav: false
+            }, dialogTracker);
+        }
 
         if (!success) {
             const errorPath = path.join('test-results', 'report', 'err', `order-confirmation-popup-click-not-found-${Date.now()}.png`);
@@ -537,6 +544,63 @@ export class CheckoutPage {
             await captureOrderConfirmationPopup(page, confirmationPopup, errorPath);
             throw new Error(`Order confirmation popup stayed open after clicking "${viLabels.confirm}". QR/loading may still be blocking order completion. Screenshot: ${errorPath}`);
         }
+    }
+
+    async function clickConfirmInsideOrderConfirmationPopup(popup: Locator) {
+        return popup.evaluate((root, confirmPattern) => {
+            const confirmRegex = new RegExp(confirmPattern, 'i');
+            const normalize = (value: string) => value
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/\u0111/g, 'd')
+                .replace(/\u0110/g, 'd')
+                .toLowerCase()
+                .replace(/\s+/g, ' ')
+                .trim();
+            const isActionable = (element: Element) => {
+                const htmlElement = element as HTMLElement;
+                const style = window.getComputedStyle(htmlElement);
+                const rect = htmlElement.getBoundingClientRect();
+                return rect.width > 0
+                    && rect.height > 0
+                    && style.display !== 'none'
+                    && style.visibility !== 'hidden'
+                    && style.pointerEvents !== 'none'
+                    && Number(style.opacity || '1') > 0.2
+                    && htmlElement.getAttribute('disabled') === null
+                    && htmlElement.getAttribute('aria-disabled') !== 'true'
+                    && (htmlElement as HTMLButtonElement).disabled !== true;
+            };
+            const scrollables = [
+                root,
+                ...Array.from(root.querySelectorAll<HTMLElement>('*')),
+            ].filter((element) => element.scrollHeight > element.clientHeight + 4) as HTMLElement[];
+
+            for (const element of scrollables) {
+                element.scrollTop = element.scrollHeight;
+            }
+
+            const buttons = Array.from(root.querySelectorAll<HTMLElement>('button, [role="button"], a, input[type="button"], input[type="submit"]'));
+            const target = buttons.slice().reverse().find((button) => {
+                if (!isActionable(button)) {
+                    return false;
+                }
+
+                const text = normalize(button.textContent || button.getAttribute('aria-label') || button.getAttribute('title') || button.getAttribute('value') || '');
+                return confirmRegex.test(button.textContent || button.getAttribute('aria-label') || button.getAttribute('title') || button.getAttribute('value') || '')
+                    || (text.includes('xac nhan') && !text.includes('thanh toan'));
+            });
+
+            if (!target) {
+                return false;
+            }
+
+            target.scrollIntoView({ block: 'center', inline: 'center' });
+            window.setTimeout(() => {
+                target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            }, 0);
+            return true;
+        }, viRegex.confirm.source).catch(() => false);
     }
 
     /**

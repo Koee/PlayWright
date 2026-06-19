@@ -428,6 +428,70 @@ test-results
 
 Report JSON/Markdown va template k6 se ghi them `customerName` va `customerPhone` da duoc resolve cho request tao order.
 
+## MLBL gift order UI tabs
+
+Muc dich: chay testcase UI dat hang co qua tang theo tab duoc cau hinh rieng cho tung project.
+
+### Setup
+
+- Base URL lay theo Playwright project trong `test-data/env/.env`:
+  - `si` -> `BASE_URL_SI`
+  - `hangthietyeu` -> `BASE_URL_HANGTHIETYEU`
+  - `tuoixanhnhanhngon` -> `BASE_URL_TUOIXANHNHANHNGON`
+- Data dat hang resolve theo `test-data/json/mlbl-gift-order-config.json`:
+  - `si` -> `test-data/json/mlbl-gift-order-si.json`
+  - `hangthietyeu`, `tuoixanhnhanhngon`, va cac project retailer khac -> `test-data/json/mlbl-gift-order-retailer.json`
+- Tab UI resolve theo `uiTabsByProject` trong `test-data/json/mlbl-gift-order-config.json`:
+  - `hangthietyeu`, `tuoixanhnhanhngon` -> `tui don ghep`, `tui doi`, `tui da dung`
+- Project `si` khong chay flow UI tabs nay; `--project=si --grep "@ui"` se skip. Dung phan MLBL gift order API hoac MLBL gift order k6 cho SI.
+- UI flow se tao don that tren site dang chay. Khong chay song song voi k6 load khi can ket qua on dinh.
+
+### Lenh run
+
+Chay rieng project `hangthietyeu`:
+
+```powershell
+npx playwright test tests/api/checkout/api-checkout-gift-order.spec.ts --project=hangthietyeu --grep "@ui"
+```
+
+Chay rieng project `tuoixanhnhanhngon`:
+
+```powershell
+npx playwright test tests/api/checkout/api-checkout-gift-order.spec.ts --project=tuoixanhnhanhngon --grep "@ui"
+```
+
+Chay ca 2 project retailer:
+
+```powershell
+npx playwright test tests/api/checkout/api-checkout-gift-order.spec.ts --project=hangthietyeu --project=tuoixanhnhanhngon --grep "@ui"
+```
+
+Gia lap/chay du 7 Playwright project:
+
+```powershell
+npx playwright test tests/api/checkout/api-checkout-gift-order.spec.ts --project=tuoixanhnhanhngon --project=tegianoitro --project=danongdichthuc --project=hangthietyeu --project=nhanquocdan --project=si --project=thegioiphaidep --grep "@ui"
+```
+
+### Kich ban
+
+Moi project se mo `baseURL` rieng, sau do chay lan luot cac tab da cau hinh va reset ve `baseURL` giua cac tab de tranh popup hoa don cu chan UI:
+
+```text
+hangthietyeu/tuoixanhnhanhngon:
+tui don ghep -> them san pham dau tien -> chon qua dau tien -> dat hang -> xac nhan thanh toan -> nhap thong tin -> xac nhan -> chup hoa don -> dong popup
+tui doi -> lap lai flow
+tui da dung -> lap lai flow
+```
+
+### Report
+
+```text
+test-results/report/pass/<project>-gift-order-tabs-report.json
+test-results/report/pass/<project>-gift-orde-don-ghep.png
+test-results/report/pass/<project>-gift-orde-doi.png
+test-results/report/pass/<project>-gift-orde-da-dung.png
+```
+
 ## MLBL gift order k6
 
 Muc dich: load test API MLBL gift order.
@@ -435,7 +499,9 @@ Muc dich: load test API MLBL gift order.
 ### Setup
 
 - Can k6 binary tai `tools/k6/k6.exe`.
-- Data mac dinh: `test-data/json/mlbl-gift-order-si.json`.
+- Data path duoc resolve theo `--project` trong `test-data/json/mlbl-gift-order-config.json`.
+- `si` dung `test-data/json/mlbl-gift-order-si.json`; cac project khac fallback ve `test-data/json/mlbl-gift-order-retailer.json` neu khong khai bao rieng.
+- Base URL duoc lay tu `BASE_URL_<PROJECT>` trong `test-data/env/.env`, co the override bang `K6_MLBL_BASE_URL`.
 - Co the override bang env:
 
 ```text
@@ -467,6 +533,25 @@ Chi ro project:
 
 ```powershell
 node scripts/run-k6-mlbl-gift-order.js --project si --json
+node scripts/run-k6-mlbl-gift-order.js --project hangthietyeu --json
+node scripts/run-k6-mlbl-gift-order.js --project tuoixanhnhanhngon --json
+```
+
+Chay smoke nho truoc khi load that:
+
+```powershell
+node scripts/run-k6-mlbl-gift-order.js --project si --json --smoke
+node scripts/run-k6-mlbl-gift-order.js --project hangthietyeu --json --smoke
+node scripts/run-k6-mlbl-gift-order.js --project tuoixanhnhanhngon --json --smoke
+```
+
+Chay qua npm script van truyen project bang `--`:
+
+```powershell
+npm run k6:mlbl-gift-order:smoke -- --project si
+npm run k6:mlbl-gift-order:smoke -- --project hangthietyeu
+npm run k6:mlbl-gift-order:smoke -- --project tuoixanhnhanhngon
+npm run k6:mlbl-gift-order:json -- --project hangthietyeu
 ```
 
 ### Report
@@ -490,6 +575,12 @@ test-results/report/k6/<project>-mlbl-gift-order-load-summary.json
 | API template guest | `npm run test:api-checkout-k6-template:guest -- --project=si` |
 | API template login | `npm run test:api-checkout-k6-template:login -- --project=si` |
 | API performance guest | `npm run test:api-checkout-performance:guest -- --project=si` |
+| MLBL gift order API - si | `npx playwright test tests/api/checkout/api-checkout-gift-order.spec.ts --grep "should create an SI order" --project=si` |
+| MLBL gift order UI - hangthietyeu | `npx playwright test tests/api/checkout/api-checkout-gift-order.spec.ts --project=hangthietyeu --grep "@ui"` |
+| MLBL gift order UI - tuoixanhnhanhngon | `npx playwright test tests/api/checkout/api-checkout-gift-order.spec.ts --project=tuoixanhnhanhngon --grep "@ui"` |
+| k6 MLBL gift order - si | `npm run k6:mlbl-gift-order:smoke -- --project si` |
+| k6 MLBL gift order - hangthietyeu | `npm run k6:mlbl-gift-order:smoke -- --project hangthietyeu` |
+| k6 MLBL gift order - tuoixanhnhanhngon | `npm run k6:mlbl-gift-order:smoke -- --project tuoixanhnhanhngon` |
 | API performance login | `npm run test:api-checkout-performance:login -- --project=si` |
 | k6 checkout guest | `npm run k6:checkout:guest:json` |
 | k6 checkout login | `npm run k6:checkout:login:json` |

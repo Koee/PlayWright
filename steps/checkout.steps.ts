@@ -6,7 +6,7 @@ import { randomInt } from 'crypto';
 import { getProjectHomeUrl, warnIfHomepageQueryWasDropped } from '../components/helpers/navigation';
 import * as dialogHandler from '../components/helpers/dialog-handler';
 import { waitForDomReady } from '../components/helpers/element-actions';
-import { CheckoutPage } from '../components/pages/CheckoutPage';
+import { CheckoutCustomer, CheckoutPage } from '../components/pages/CheckoutPage';
 import { InvoicePage } from '../components/pages/InvoicePage';
 import { appendErrorReport } from '../utils/reportUtils';
 
@@ -18,6 +18,37 @@ let checkoutCustomerSequence = 0;
  */
 export type CompleteCheckoutFlowOptions = {
     runLabel?: string;
+};
+
+export type CompleteCheckoutFromCurrentCartOptions = {
+    artifactName?: string;
+    customer?: CheckoutCustomer;
+    dialogTracker?: dialogHandler.DialogTracker;
+    checkoutPage?: CheckoutPage;
+    invoicePage?: InvoicePage;
+    proceedToCheckout?: boolean;
+    beforeCompleteOrder?: (context: {
+        checkoutPage: CheckoutPage;
+        invoicePage: InvoicePage;
+        dialogTracker?: dialogHandler.DialogTracker;
+    }) => Promise<void> | void;
+    completeOrder?: (context: {
+        checkoutPage: CheckoutPage;
+        invoicePage: InvoicePage;
+        dialogTracker?: dialogHandler.DialogTracker;
+    }) => Promise<void>;
+    captureInvoice?: (context: {
+        checkoutPage: CheckoutPage;
+        invoicePage: InvoicePage;
+        dialogTracker?: dialogHandler.DialogTracker;
+        artifactTestInfo: TestInfo;
+    }) => Promise<string>;
+};
+
+export type CompleteCheckoutFromCurrentCartResult = {
+    artifactName: string;
+    customer: CheckoutCustomer;
+    invoiceScreenshotPath: string;
 };
 
 /**
@@ -65,6 +96,73 @@ function buildTestCustomer(runLabel?: string) {
     return {
         name: `${namePrefix} ${customerId}`,
         phone: `${phonePrefix}${phoneSuffix}`.slice(0, 10),
+    };
+}
+
+export async function completeCheckoutFromCurrentCart(
+    page: Page,
+    testInfo: TestInfo,
+    options: CompleteCheckoutFromCurrentCartOptions = {},
+): Promise<CompleteCheckoutFromCurrentCartResult> {
+    const artifactName = options.artifactName ?? buildArtifactName(testInfo.project.name);
+    const customer = options.customer ?? buildTestCustomer(artifactName);
+    const artifactTestInfo = { ...testInfo, artifactName };
+    const dialogTracker = options.dialogTracker;
+    const checkoutPage = options.checkoutPage ?? new CheckoutPage(page, dialogTracker);
+    const invoicePage = options.invoicePage ?? new InvoicePage(page, dialogTracker);
+
+    if (options.proceedToCheckout) {
+        console.log('Step 4: Proceeding to checkout...');
+        await checkoutPage.proceedToCheckout();
+        const apiError = await invoicePage.checkAndCaptureApiError(artifactTestInfo, 'proceed-checkout');
+        if (apiError) throw new Error(`API error detected during checkout. Screenshot: ${apiError}`);
+        if (dialogTracker) {
+            await dialogHandler.checkAndHandleDialog(page, dialogTracker, 'proceed-checkout');
+        }
+    }
+
+    console.log('Step 5: Confirming payment...');
+    await checkoutPage.confirmPayment();
+    let apiError = await invoicePage.checkAndCaptureApiError(artifactTestInfo, 'confirm-payment');
+    if (apiError) throw new Error(`API error detected after confirming payment. Screenshot: ${apiError}`);
+    if (dialogTracker) {
+        await dialogHandler.checkAndHandleDialog(page, dialogTracker, 'confirm-payment');
+    }
+
+    console.log('Step 6: Filling customer information...');
+    await checkoutPage.fillCustomerInfo(customer);
+    apiError = await invoicePage.checkAndCaptureApiError(artifactTestInfo, 'fill-info');
+    if (apiError) throw new Error(`API error detected after filling customer information. Screenshot: ${apiError}`);
+    if (dialogTracker) {
+        await dialogHandler.checkAndHandleDialog(page, dialogTracker, 'fill-info');
+    }
+
+    console.log('Step 7: Completing order...');
+    await options.beforeCompleteOrder?.({ checkoutPage, invoicePage, dialogTracker });
+    if (options.completeOrder) {
+        await options.completeOrder({ checkoutPage, invoicePage, dialogTracker });
+    } else {
+        await checkoutPage.completeOrder();
+    }
+    apiError = await invoicePage.checkAndCaptureApiError(artifactTestInfo, 'complete-order');
+    if (apiError) throw new Error(`API error detected after completing order. Screenshot: ${apiError}`);
+    if (dialogTracker) {
+        await dialogHandler.checkAndHandleDialog(page, dialogTracker, 'complete-order');
+    }
+
+    console.log('Step 8: Capturing invoice...');
+    const invoiceScreenshotPath = options.captureInvoice
+        ? await options.captureInvoice({ checkoutPage, invoicePage, dialogTracker, artifactTestInfo })
+        : await invoicePage.captureInvoice(artifactTestInfo);
+    await expect(
+        invoiceScreenshotPath,
+        `Invoice screenshot should be captured for ${artifactName}`
+    ).toBeTruthy();
+
+    return {
+        artifactName,
+        customer,
+        invoiceScreenshotPath,
     };
 }
 
@@ -133,41 +231,14 @@ export async function completeCheckoutFlow(page: Page, testInfo: TestInfo, optio
         if (apiError) throw new Error(`API error detected after adding product. Screenshot: ${apiError}`);
         await dialogHandler.checkAndHandleDialog(page, dialogTracker, 'add-product');
 
-        console.log('Step 4: Proceeding to checkout...');
-        await checkoutPage.proceedToCheckout();
-        // Check for API errors after proceeding to checkout
-        apiError = await invoicePage.checkAndCaptureApiError(artifactTestInfo, 'proceed-checkout');
-        if (apiError) throw new Error(`API error detected during checkout. Screenshot: ${apiError}`);
-        // Check for dialog that might have appeared during proceed to checkout
-        await dialogHandler.checkAndHandleDialog(page, dialogTracker, 'proceed-checkout');
-
-        console.log('Step 5: Confirming payment...');
-        await checkoutPage.confirmPayment();
-        // Check for API errors after confirming payment
-        apiError = await invoicePage.checkAndCaptureApiError(artifactTestInfo, 'confirm-payment');
-        if (apiError) throw new Error(`API error detected after confirming payment. Screenshot: ${apiError}`);
-        await dialogHandler.checkAndHandleDialog(page, dialogTracker, 'confirm-payment');
-
-        console.log('Step 6: Filling customer information...');
-        await checkoutPage.fillCustomerInfo(testCustomer);
-        // Check for API errors after filling customer info
-        apiError = await invoicePage.checkAndCaptureApiError(artifactTestInfo, 'fill-info');
-        if (apiError) throw new Error(`API error detected after filling customer information. Screenshot: ${apiError}`);
-        await dialogHandler.checkAndHandleDialog(page, dialogTracker, 'fill-info');
-
-        console.log('Step 7: Completing order...');
-        await checkoutPage.completeOrder();
-        // Check for API errors after completing order
-        apiError = await invoicePage.checkAndCaptureApiError(artifactTestInfo, 'complete-order');
-        if (apiError) throw new Error(`API error detected after completing order. Screenshot: ${apiError}`);
-        await dialogHandler.checkAndHandleDialog(page, dialogTracker, 'complete-order');
-
-        console.log('Step 8: Capturing invoice...');
-        const invoiceScreenshotPath = await invoicePage.captureInvoice(artifactTestInfo);
-        await expect(
-            invoiceScreenshotPath,
-            `Invoice screenshot should be captured for ${artifactName}`
-        ).toBeTruthy();
+        await completeCheckoutFromCurrentCart(page, testInfo, {
+            artifactName,
+            customer: testCustomer,
+            dialogTracker,
+            checkoutPage,
+            invoicePage,
+            proceedToCheckout: true,
+        });
 
         console.log(`${'='.repeat(80)}\nOK Checkout completed successfully for: ${artifactName}\n${'='.repeat(80)}\n`);
 
